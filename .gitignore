@@ -1,0 +1,27 @@
+# Installed dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Local environment variables
+.env*
+!.env.example
+
+# Test coverage
+coverage/
+
+# Local Vercel configuration
+.vercel/
+
+# Generated TypeScript files
+*.tsbuildinfo
+next-env.d.ts
+
+# npm debug logs
+npm-debug.log*
+
+# Operating system files
+.DS_Store
+Thumbs.db
