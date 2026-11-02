@@ -53,7 +53,7 @@ Prices and starting quantities come from the assignment. Availability decreases 
 - Tell people to enter their age **when they first attend the festival**, not today or on the festival's opening day. Keep that age category for all dates in this booking.
 - Under 5: free entry. Ages 5–11: child admission. Ages 12+: adult admission.
 - Record under-fives and their dates for the attendance list, without charging for or requiring an entry ticket.
-- Reject missing details, invalid emails, negative, fractional or nonnumeric ages, and tickets that do not match the age category. Ages are declared; identity verification is outside this exercise.
+- Reject missing details, invalid emails, negative, fractional or nonnumeric ages, ages above 150, and tickets that do not match the age category. Ages are declared; identity verification is outside this exercise.
 - Keep people and ticket quantities matched after edits. One adult attending three dates has one attendee record and three adult Day Pass units.
 
 **Example:** someone is 11 on November 10, turns 12 on November 12 and first attends on November 13. They need adult admission. Someone who first attends at 11 keeps the child category for their booked dates, even if their birthday falls later during the festival.
