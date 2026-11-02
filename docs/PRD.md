@@ -41,6 +41,9 @@ Prices and starting quantities come from the assignment. Availability decreases 
 - The same four people can use a Family Pass on multiple dates. Charge $40 and use one Family Pass from stock per date; collect their details once. Two dates cost $80.
 - Dinner and workshop selections belong to a named attendee and date and require attendance on that date. Free entry does not make extras free.
 - Both workshop dates share the two remaining places.
+- **Dandiya Sticks:** 0–10 whole pairs per booking, never more than the remaining stock.
+- **Dinner Plate:** at most one per attendee per attendance date. Someone attending three days can buy three, one for each day, and different attendees can each buy one for the same date. Under-fives pay the normal $12.
+- **Garba Workshop:** at most one place per attendee per session. One attendee may book both November 11 and November 13 ($40), if their admission covers both dates. Every place comes from the shared two.
 - Show sold-out products clearly and prevent purchasing them on both the page and the API.
 
 ## 4. People and ages
@@ -111,7 +114,7 @@ The subtotal is tickets plus selected extras before discount. Allow one promo co
 
 - Build one festival's booking flow with simulated payment and printable confirmation.
 - Defer real payments, email delivery, accounts, refunds, an admin screen and identity verification to focus on booking correctness.
-- Exact extra-quantity limits, including what counts as a reasonable sticks quantity, still need review. Settle those one at a time before implementing the related validation; no unreviewed caps are introduced here.
+- Extra-quantity limits are settled in section 3. The UI and the API enforce the same limits.
 - Preserve the original `DESIGN.md`. Record later decisions and reasons in the README under **"Decisions I made"**.
 
 ## 9. Checks before submission

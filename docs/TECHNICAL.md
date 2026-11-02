@@ -72,7 +72,10 @@ An attendee has `id`, `name`, `firstVisitDate`, `ageAtFirstVisit` and one `admis
 - An All-Day Pass still covers all five dates even when its holder first arrives later. Keep the declared first visit separately for age classification. Extras must be covered by the admission and cannot be dated before that first visit.
 - Classify using `ageAtFirstVisit`; do not recalculate the category on each booked day. If the first visit changes, ask the user to check that age again.
 - `selection` contains `attendees`, `familyGroups`, `extras` and an optional `promoCode`. Extras contain a sticks quantity and dinner/workshop selections referring to an attendee and date.
-- Extra quantity limits remain open in PRD section 8. Settle them before finalising those schemas; do not quietly impose a one-plate limit or another unreviewed cap.
+- Extra limits from PRD section 3, enforced by the schemas and checkout, not only the UI:
+  - **Sticks:** an integer from 0 to 10. Checkout also requires enough stock.
+  - **Dinner:** a selection is `{ attendeeId, date }`. Reject duplicate pairs and dates the attendee is not admitted on.
+  - **Workshop:** a selection is `{ attendeeId, date }`, with the date `2026-11-11` or `2026-11-13`. Reject duplicate pairs and dates the admission does not cover. Both dates deduct from the one workshop stock row.
 
 ## 5. API shapes
 
@@ -153,8 +156,9 @@ Seed missing inventory rows only. Do not reset existing stock on startup or depl
 
 | Environment variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Pooled application connection to Neon. |
-| `DIRECT_DATABASE_URL` | Direct connection for migration tooling when required. |
+| `DATABASE_URL` | Pooled application connection to Neon. Read by `src/server/db.ts` through `parseEnv` from `@neon/env`. |
+| `DATABASE_URL_UNPOOLED` | Direct connection for migration tooling. Neon's name for it; `neon deploy` and `neon env pull` write it. |
+| `NEON_BRANCH` | Neon branch name, written by `neon env pull`. Not read by the app. |
 | `TEST_DATABASE_URL` | Isolated test database, never production. |
 
 Keep credentials server-only and out of Git. Commit a sanitised `.env.example` and ignore files containing real values. Use parameterized SQL and mark server modules as server-only.
@@ -169,6 +173,6 @@ Deploy an early working slice to Vercel. Before submission, verify the productio
 
 Work on one file at a time, explain its purpose and inputs/outputs, and review it before moving on. Run meaningful tests once the relevant pieces exist. Commit complete, understandable steps rather than creating an artificial history.
 
-Planned order: project setup; domain types and rules with tests; catalog and quote API; database checkout and failure tests; form; confirmation; deployment checks. Resolve the open extra rules before their implementation. Keep `TEST-CASES.md` and the README current as checks actually run.
+Planned order: project setup; domain types and rules with tests; catalog and quote API; database checkout and failure tests; form; confirmation; deployment checks. Keep `TEST-CASES.md` and the README current as checks actually run.
 
 Official setup references: [Next.js route handlers](https://nextjs.org/docs/app/getting-started/route-handlers) and [Next.js Jest guide](https://nextjs.org/docs/app/guides/testing/jest). Folder names and the database model above are project choices.
