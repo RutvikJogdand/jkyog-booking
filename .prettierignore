@@ -1,0 +1,8 @@
+# DESIGN.md must stay unchanged; the other docs keep their hand-written formatting.
+*.md
+
+.agents/
+.next/
+coverage/
+package-lock.json
+skills-lock.json
