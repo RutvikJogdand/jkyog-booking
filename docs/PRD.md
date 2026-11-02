@@ -60,13 +60,13 @@ Prices and starting quantities come from the assignment. Availability decreases 
 
 ## 5. Promos and prices
 
-The subtotal is tickets plus selected extras before discount. Allow one promo code per booking.
+The subtotal is tickets plus selected extras before discount. Allow one promo code per booking. Codes must match exactly, including letter case and with no surrounding spaces: `seva10` is not recognised.
 
 | Code | Required behaviour |
 | --- | --- |
 | `SEVA10` | Take 10% off the whole booking, including extras. |
 | `FLAT20` | Take $20 off only when the subtotal is at least $20, including extras. Otherwise explain the $20 minimum. |
-| `KIDSFREE` | Make individual child Day and All-Day tickets free. Family Passes, adult tickets and extras keep their prices. |
+| `KIDSFREE` | Make individual child Day and All-Day tickets free. Family Passes, adult tickets and extras keep their prices. Without any such child ticket, explain "This code only applies to child tickets." and apply no discount. |
 | `EXPIRED5` | Explain that the code has expired; apply no discount. |
 | `MAXEDOUT` | Explain that the code has reached its usage limit; apply no discount. |
 | Any other code | Explain that the code is not recognised; apply no discount. |
