@@ -11,14 +11,24 @@
     "start": "next start"
   },
   "dependencies": {
+    "@neon/config": "^1.10.0",
+    "@neon/env": "^1.6.8",
+    "@opentelemetry/api": "1.10.0",
+    "@vercel/functions": "3.10.5",
     "next": "16.4.4",
+    "pg": "8.23.1",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "zod": "^4.6.6"
   }
 }
