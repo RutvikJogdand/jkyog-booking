@@ -16,7 +16,16 @@ export function OrderSummary({
   hasAttendees: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const shown = quote.quote ?? quote.lastQuote;
+  const current = quote.status === "ready" ? quote.quote : null;
+  const statusText = !hasAttendees
+    ? "Add the first person who's coming to see a price."
+    : quote.status === "loading"
+      ? "Updating total…"
+      : quote.status === "idle"
+        ? "Finish each person's details to see a price."
+        : quote.status === "error"
+          ? (quote.error?.message ?? "We couldn't update the total.")
+          : "";
 
   return (
     <aside
@@ -26,7 +35,7 @@ export function OrderSummary({
       <div className={styles.summaryBar}>
         <h2 id="summary-heading">Order summary</h2>
         <span className={styles.summaryTotal}>
-          {shown ? formatUsd(shown.totalCents) : "—"}
+          {current ? formatUsd(current.totalCents) : "—"}
         </span>
         <button
           type="button"
@@ -38,20 +47,11 @@ export function OrderSummary({
           {expanded ? "Hide summary" : "View summary"}
         </button>
       </div>
+      <p className={styles.summaryStatus} aria-live="polite">
+        {statusText}
+      </p>
 
-      <div
-        id="summary-body"
-        className={styles.summaryBody}
-        style={expanded ? undefined : { display: "none" }}
-      >
-        <p aria-live="polite" className={styles.muted}>
-          {quote.status === "loading" && "Updating total…"}
-          {quote.status === "idle" &&
-            (hasAttendees
-              ? "Finish each person's details to see a price."
-              : "Add the first person who's coming to see a price.")}
-        </p>
-
+      <div id="summary-body" className={styles.summaryBody} hidden={!expanded}>
         {quote.status === "error" && quote.error && (
           <div className={styles.error} role="alert">
             <strong>Error:</strong> {quote.error.message}
@@ -70,20 +70,25 @@ export function OrderSummary({
           </div>
         )}
 
-        {shown && quote.status !== "idle" && (
-          <div className={quote.status === "ready" ? undefined : styles.stale}>
-            {quote.status !== "ready" && (
-              <p className={styles.muted}>
-                Out of date until the new total loads.
-              </p>
-            )}
-            <QuoteTable
-              quote={shown}
-              promoCode={promoCode}
-              caption="Order summary"
-            />
-          </div>
+        {current && (
+          <QuoteTable
+            quote={current}
+            promoCode={promoCode}
+            caption="Order summary"
+          />
         )}
+
+        {!current &&
+          quote.status === "loading" &&
+          quote.lastQuote &&
+          hasAttendees && (
+            <div className={styles.stale}>
+              <p className={styles.muted}>
+                Previous total: {formatUsd(quote.lastQuote.totalCents)}. It does
+                not include the latest change.
+              </p>
+            </div>
+          )}
       </div>
     </aside>
   );

@@ -1,4 +1,5 @@
 import { categoryForAge, parseAgeInput } from "@/domain/booking/age";
+import { MAX_STICKS_PAIRS } from "@/domain/booking/validation";
 import {
   FESTIVAL_DATES,
   WORKSHOP_DATES,
@@ -45,7 +46,7 @@ export interface DraftBooker {
 export interface Draft {
   attendees: DraftAttendee[];
   familyGroups: DraftFamilyGroup[];
-  sticksPairs: number;
+  sticksText: string;
   dinners: DatedPick[];
   workshops: DatedPick[];
   booker: DraftBooker;
@@ -56,7 +57,7 @@ export interface Draft {
 export const initialDraft: Draft = {
   attendees: [],
   familyGroups: [],
-  sticksPairs: 0,
+  sticksText: "0",
   dinners: [],
   workshops: [],
   booker: { name: "", email: "", ageText: "", phone: "" },
@@ -72,7 +73,7 @@ type AttendeeChanges = Partial<
 >;
 
 export type Action =
-  | { type: "attendeeAdded"; id: string }
+  | { type: "attendeeAdded"; id: string; familyId?: string }
   | { type: "attendeeRemoved"; id: string }
   | { type: "attendeeChanged"; id: string; changes: AttendeeChanges }
   | { type: "attendeeAgeChanged"; id: string; ageText: string }
@@ -80,7 +81,7 @@ export type Action =
   | { type: "familyGroupAdded"; id: string }
   | { type: "familyGroupRemoved"; id: string }
   | { type: "familyGroupDatesChanged"; id: string; dates: FestivalDate[] }
-  | { type: "sticksChanged"; pairs: number }
+  | { type: "sticksChanged"; text: string }
   | { type: "dinnerToggled"; pick: DatedPick }
   | { type: "workshopToggled"; pick: DatedPick }
   | { type: "bookerChanged"; changes: Partial<DraftBooker> }
@@ -170,6 +171,9 @@ function apply(draft: Draft, action: Action): Draft {
             familyId: null,
             ageText: "",
             ageCheckedFor: null,
+            ...(action.familyId === undefined
+              ? {}
+              : { mode: "family" as const, familyId: action.familyId }),
           },
         ],
       };
@@ -215,7 +219,7 @@ function apply(draft: Draft, action: Action): Draft {
         ),
       };
     case "sticksChanged":
-      return { ...draft, sticksPairs: action.pairs };
+      return { ...draft, sticksText: action.text };
     case "dinnerToggled":
       return { ...draft, dinners: toggle(draft.dinners, action.pick) };
     case "workshopToggled":
@@ -308,9 +312,31 @@ function toAdmission(
   }
 }
 
+export function parseSticks(
+  text: string,
+): { ok: true; pairs: number } | { ok: false; message: string } {
+  const trimmed = text.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return {
+      ok: false,
+      message: `Enter a whole number of pairs, from 0 to ${MAX_STICKS_PAIRS}.`,
+    };
+  }
+  const pairs = Number(trimmed);
+  if (pairs > MAX_STICKS_PAIRS) {
+    return {
+      ok: false,
+      message: `Choose between 0 and ${MAX_STICKS_PAIRS} pairs.`,
+    };
+  }
+  return { ok: true, pairs };
+}
+
 // Null until every attendee has a parseable age and a first day; the server re-checks everything.
 export function toSelection(draft: Draft): Selection | null {
   if (draft.attendees.length === 0) return null;
+  const sticks = parseSticks(draft.sticksText);
+  if (!sticks.ok) return null;
   const attendees = [];
   for (const attendee of draft.attendees) {
     const age = parseAgeInput(attendee.ageText);
@@ -333,7 +359,7 @@ export function toSelection(draft: Draft): Selection | null {
       dates: [...g.dates].sort(),
     })),
     extras: {
-      sticksPairs: draft.sticksPairs,
+      sticksPairs: sticks.pairs,
       dinners: draft.dinners,
       workshops: draft.workshops.filter(
         (

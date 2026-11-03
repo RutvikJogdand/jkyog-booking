@@ -8,6 +8,14 @@ import {
   type Selection,
 } from "./types";
 
+export const TEXT_LIMITS = {
+  name: 200,
+  email: 254,
+  phone: 30,
+  promo: 50,
+  id: 100,
+} as const;
+
 export const MIN_BOOKER_AGE = 18;
 export const MAX_STICKS_PAIRS = 10;
 export const FAMILY_ADULTS = 2;

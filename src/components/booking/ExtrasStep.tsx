@@ -2,15 +2,12 @@
 
 import type { Dispatch } from "react";
 import { categoryForAge, parseAgeInput } from "@/domain/booking/age";
-import {
-  FESTIVAL_DATES,
-  WORKSHOP_DATES,
-  type ProductId,
-} from "@/domain/booking/types";
+import { WORKSHOP_DATES, type ProductId } from "@/domain/booking/types";
 import { MAX_STICKS_PAIRS } from "@/domain/booking/validation";
 import {
   admittedDates,
   displayName,
+  parseSticks,
   type Action,
   type Draft,
   type DraftBooker,
@@ -18,7 +15,12 @@ import {
 import styles from "./booking.module.css";
 import { DATE_LABELS, formatUsd } from "./format";
 import { IssueList } from "./IssueList";
-import { issuesFor, type Availability, type UiIssue } from "./step-checks";
+import {
+  issuesFor,
+  messagesForField,
+  type Availability,
+  type UiIssue,
+} from "./step-checks";
 
 interface Props {
   draft: Draft;
@@ -36,8 +38,11 @@ export function ExtrasStep({
   prices,
 }: Props) {
   const maxSticks = Math.min(MAX_STICKS_PAIRS, availability.dandiya_sticks);
+  const sticks = parseSticks(draft.sticksText);
+  const stickPairs = sticks.ok ? sticks.pairs : null;
   const workshopPlacesLeft = availability.garba_workshop;
   const workshopsFull = draft.workshops.length >= workshopPlacesLeft;
+  const dinnersFull = draft.dinners.length >= availability.dinner_plate;
   const hasUnderFive = draft.attendees.some((a) => {
     const age = parseAgeInput(a.ageText);
     return age.ok && categoryForAge(age.age) === "under_five";
@@ -62,11 +67,11 @@ export function ExtrasStep({
             <button
               type="button"
               aria-label="Remove a pair"
-              disabled={draft.sticksPairs <= 0}
+              disabled={stickPairs === null || stickPairs <= 0}
               onClick={() =>
                 dispatch({
                   type: "sticksChanged",
-                  pairs: draft.sticksPairs - 1,
+                  text: String((stickPairs ?? 0) - 1),
                 })
               }
             >
@@ -76,32 +81,36 @@ export function ExtrasStep({
               id="sticks"
               className={styles.input}
               inputMode="numeric"
-              value={String(draft.sticksPairs)}
-              onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "").slice(0, 3);
-                dispatch({
-                  type: "sticksChanged",
-                  pairs: Number(digits || "0"),
-                });
-              }}
+              aria-invalid={!sticks.ok || undefined}
+              aria-describedby={!sticks.ok ? "sticks-error" : undefined}
+              value={draft.sticksText}
+              onChange={(e) =>
+                dispatch({ type: "sticksChanged", text: e.target.value })
+              }
             />
             <button
               type="button"
               aria-label="Add a pair"
-              disabled={draft.sticksPairs >= maxSticks}
+              disabled={stickPairs === null || stickPairs >= maxSticks}
               onClick={() =>
                 dispatch({
                   type: "sticksChanged",
-                  pairs: draft.sticksPairs + 1,
+                  text: String((stickPairs ?? 0) + 1),
                 })
               }
             >
               +
             </button>
           </div>
+          {!sticks.ok && (
+            <p id="sticks-error" className={styles.error} role="alert">
+              <strong>Error:</strong> {sticks.message}
+            </p>
+          )}
           {availability.dandiya_sticks === 0 && (
             <p>
-              <span className={styles.badge}>Sold out</span>
+              <span className={styles.badge}>Sold out</span> No new pairs can be
+              added.
             </p>
           )}
         </div>
@@ -114,117 +123,98 @@ export function ExtrasStep({
             Entry is free for under-fives; extras are charged normally.
           </p>
         )}
-        {availability.dinner_plate === 0 ? (
-          <p>
-            <span className={styles.badge}>Sold out</span>
-          </p>
-        ) : (
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <caption className={styles.srOnly}>
-                Dinner Plates by person and day
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Person</th>
-                  {FESTIVAL_DATES.map((date) => (
-                    <th key={date} scope="col">
-                      {DATE_LABELS[date]}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {draft.attendees.map((attendee, i) => {
-                  const attending = admittedDates(attendee, draft.familyGroups);
-                  const name = displayName(attendee, i);
+        <p aria-live="polite">
+          {availability.dinner_plate === 0
+            ? "Dinner Plates are sold out. Any plate already chosen can still be removed."
+            : `${availability.dinner_plate} plates left.`}
+        </p>
+        {draft.attendees.map((attendee, i) => {
+          const attending = admittedDates(attendee, draft.familyGroups);
+          const name = displayName(attendee, i);
+          if (attending.length === 0) return null;
+          return (
+            <fieldset key={attendee.id} className={styles.fieldset}>
+              <legend>{name}</legend>
+              <div className={styles.options}>
+                {attending.map((date) => {
+                  const checked = draft.dinners.some(
+                    (d) => d.attendeeId === attendee.id && d.date === date,
+                  );
+                  const blocked = !checked && dinnersFull;
                   return (
-                    <tr key={attendee.id}>
-                      <th scope="row">{name}</th>
-                      {FESTIVAL_DATES.map((date) => (
-                        <td key={date}>
-                          {attending.includes(date) ? (
-                            <input
-                              type="checkbox"
-                              aria-label={`Dinner Plate for ${name} on ${DATE_LABELS[date]}`}
-                              checked={draft.dinners.some(
-                                (d) =>
-                                  d.attendeeId === attendee.id &&
-                                  d.date === date,
-                              )}
-                              onChange={() =>
-                                dispatch({
-                                  type: "dinnerToggled",
-                                  pick: { attendeeId: attendee.id, date },
-                                })
-                              }
-                            />
-                          ) : (
-                            <span className={styles.muted}>Not attending</span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
+                    <label
+                      key={date}
+                      className={`${styles.dateOption} ${blocked ? styles.optionDisabled : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={blocked}
+                        onChange={() =>
+                          dispatch({
+                            type: "dinnerToggled",
+                            pick: { attendeeId: attendee.id, date },
+                          })
+                        }
+                      />
+                      {DATE_LABELS[date]} · {formatUsd(prices.dinner_plate)}
+                      {blocked ? " (sold out)" : ""}
+                    </label>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </div>
+            </fieldset>
+          );
+        })}
 
         <h3>
           Garba Workshop · {formatUsd(prices.garba_workshop)} per person, per
           session
         </h3>
         <p aria-live="polite">
-          {workshopPlacesLeft === 0 ? (
-            <span className={styles.badge}>Sold out</span>
-          ) : (
-            `${workshopPlacesLeft} ${workshopPlacesLeft === 1 ? "place" : "places"} left across both sessions (Wed 11 Nov and Fri 13 Nov).`
-          )}
+          {workshopPlacesLeft === 0
+            ? "Garba Workshop places are sold out across both sessions. A place already chosen can still be removed."
+            : `${workshopPlacesLeft} ${workshopPlacesLeft === 1 ? "place" : "places"} left across both sessions (Wed 11 Nov and Fri 13 Nov).`}
         </p>
-        {workshopPlacesLeft > 0 &&
-          draft.attendees.map((attendee, i) => {
-            const attending = admittedDates(attendee, draft.familyGroups);
-            const sessions = WORKSHOP_DATES.filter((d) =>
-              attending.includes(d),
-            );
-            const name = displayName(attendee, i);
-            if (sessions.length === 0) return null;
-            return (
-              <fieldset key={attendee.id} className={styles.fieldset}>
-                <legend>{name}</legend>
-                <div className={styles.options}>
-                  {sessions.map((date) => {
-                    const checked = draft.workshops.some(
-                      (w) => w.attendeeId === attendee.id && w.date === date,
-                    );
-                    const disabled = !checked && workshopsFull;
-                    return (
-                      <label
-                        key={date}
-                        className={`${styles.option} ${disabled ? styles.optionDisabled : ""}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={disabled}
-                          onChange={() =>
-                            dispatch({
-                              type: "workshopToggled",
-                              pick: { attendeeId: attendee.id, date },
-                            })
-                          }
-                        />
-                        {DATE_LABELS[date]}
-                        {disabled && " (no places left)"}
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-            );
-          })}
+        {draft.attendees.map((attendee, i) => {
+          const attending = admittedDates(attendee, draft.familyGroups);
+          const sessions = WORKSHOP_DATES.filter((d) => attending.includes(d));
+          const name = displayName(attendee, i);
+          if (sessions.length === 0) return null;
+          return (
+            <fieldset key={attendee.id} className={styles.fieldset}>
+              <legend>{name}</legend>
+              <div className={styles.options}>
+                {sessions.map((date) => {
+                  const checked = draft.workshops.some(
+                    (w) => w.attendeeId === attendee.id && w.date === date,
+                  );
+                  const disabled = !checked && workshopsFull;
+                  return (
+                    <label
+                      key={date}
+                      className={`${styles.dateOption} ${disabled ? styles.optionDisabled : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={disabled}
+                        onChange={() =>
+                          dispatch({
+                            type: "workshopToggled",
+                            pick: { attendeeId: attendee.id, date },
+                          })
+                        }
+                      />
+                      {DATE_LABELS[date]} · {formatUsd(prices.garba_workshop)}
+                      {disabled ? " (no places left across both sessions)" : ""}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          );
+        })}
       </section>
 
       <ContactForm
@@ -283,22 +273,38 @@ function ContactForm({
         person in step 1.
       </p>
       {fields.map((field) => {
-        const issueKey = `booker.${field.key === "ageText" ? "age" : field.key}`;
+        const fieldId = `booker-${field.key}`;
+        const messages = messagesForField(issues, fieldId);
+        const errorId = `${fieldId}-error`;
         return (
           <div key={field.key} className={styles.field}>
-            <label className={styles.label} htmlFor={`booker-${field.key}`}>
+            <label className={styles.label} htmlFor={fieldId}>
               {field.label}
             </label>
+            {field.key === "ageText" && (
+              <p className={styles.hint} id="booker-age-hint">
+                You must be 18 or older today. You do not need to attend.
+              </p>
+            )}
             <input
-              id={`booker-${field.key}`}
+              id={fieldId}
               className={styles.input}
               type={field.type ?? "text"}
               inputMode={field.inputMode}
               autoComplete={field.autoComplete}
+              aria-invalid={messages.length > 0 || undefined}
+              aria-describedby={
+                [
+                  field.key === "ageText" ? "booker-age-hint" : null,
+                  messages.length > 0 ? errorId : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
               value={booker[field.key]}
               onChange={(e) => onChange({ [field.key]: e.target.value })}
             />
-            <IssueList messages={issuesFor(issues, issueKey)} />
+            <IssueList id={errorId} messages={messages} />
           </div>
         );
       })}

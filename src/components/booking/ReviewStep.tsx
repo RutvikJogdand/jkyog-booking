@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type Dispatch } from "react";
+import { useEffect, useRef, useState, type Dispatch } from "react";
 import type { Selection } from "@/domain/booking/types";
 import type { Action, Draft } from "./booking-reducer";
 import styles from "./booking.module.css";
@@ -94,19 +94,33 @@ export function ReviewStep({
           <>
             <p
               className={promoError ? styles.error : styles.success}
+              className={
+                quote.status === "ready" && !promoError
+                  ? styles.success
+                  : quote.status === "error"
+                    ? styles.error
+                    : undefined
+              }
               role="status"
             >
-              {promoError ? (
+              {quote.status === "loading" || quote.status === "idle" ? (
+                <>Checking {draft.promoCode}…</>
+              ) : promoError ? (
                 <>
                   <strong>Error:</strong> {draft.promoCode}:{" "}
                   {promoError.message}
                 </>
+              ) : quote.status === "error" ? (
+                <>
+                  <strong>Error:</strong> We couldn&apos;t confirm{" "}
+                  {draft.promoCode}.
+                </>
               ) : (
                 <>
                   Applied: <strong>{draft.promoCode}</strong>
-                  {quote.quote &&
-                    ` · saving ${formatUsd(quote.quote.discountCents)}`}
-                </>
+                  {quote.quote
+                    ? ` · saving ${formatUsd(quote.quote.discountCents)}`
+                    : ""}
               )}
             </p>
             <button
@@ -134,16 +148,21 @@ export function ReviewStep({
             caption="Itemized price"
           />
         ) : quote.status === "error" && !promoError ? (
+        ) : quote.status === "error" ? (
           <div className={styles.error} role="alert">
-            <strong>Error:</strong> {quote.error?.message}{" "}
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={quote.retry}
-            >
-              Try again
-            </button>
-          </div>
+            <strong>Error:</strong> {quote.error?.message}
+            {!promoError && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  className={styles.linkButton}
+                  onClick={quote.retry}
+                >
+                  Try again
+                </button>
+              </>
+            )}
         ) : (
           <p aria-live="polite">Updating total…</p>
         )}
@@ -163,24 +182,47 @@ function PromoForm({
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const request = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => request.current?.abort();
+  }, []);
+
   async function apply() {
-    if (code === "") {
+    if (code.trim() === "") {
       setMessage("Enter a code.");
       return;
     }
-    setBusy(true);
-    setMessage(null);
-    const outcome = await requestQuote({ ...selection, promoCode: code });
-    setBusy(false);
-    if (outcome.ok) {
-      onApplied(code);
+    if (code.length > TEXT_LIMITS.promo) {
+      setMessage(`Use ${TEXT_LIMITS.promo} characters or fewer.`);
       return;
     }
-    setMessage(
-      outcome.fields.find((f) => f.path === "selection.promoCode")?.message ??
-        outcome.message,
-    );
-  }
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const outcome = await requestQuote(
+        { ...selection, promoCode: code },
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      setBusy(false);
+      if (outcome.ok) {
+        onApplied(code);
+        return;
+      }
+      setMessage(
+        outcome.fields.find((f) => f.path === "selection.promoCode")?.message ??
+          outcome.message,
+      );
+    } catch {
+      if (!controller.signal.aborted) {
+        setBusy(false);
+        setMessage("We couldn't check that code.");
+      }
+    }
 
   return (
     <form
@@ -203,7 +245,9 @@ function PromoForm({
             className={styles.input}
             style={{ maxWidth: "14rem" }}
             aria-describedby="promo-hint"
-            autoComplete="off"
+            aria-describedby={message ? "promo-hint promo-error" : "promo-hint"}
+            aria-invalid={message !== null || undefined}
+            maxLength={TEXT_LIMITS.promo}
             autoCapitalize="off"
             spellCheck={false}
             value={code}
@@ -220,7 +264,7 @@ function PromoForm({
       </div>
       {message && (
         <p className={styles.error} role="alert">
-          <strong>Error:</strong> {message}
+        <p id="promo-error" className={styles.error} role="alert">
         </p>
       )}
     </form>

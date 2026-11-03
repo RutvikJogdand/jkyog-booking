@@ -3,6 +3,7 @@ import {
   bookingReducer,
   initialDraft,
   needsAgeCheck,
+  parseSticks,
   toSelection,
   type Action,
   type Draft,
@@ -64,6 +65,29 @@ describe("bookingReducer", () => {
 
     draft = bookingReducer(draft, { type: "attendeeAgeConfirmed", id: "a" });
     expect(needsAgeCheck(draft.attendees[0]!, draft.familyGroups)).toBe(false);
+  });
+});
+
+describe("parseSticks", () => {
+  it("keeps only a whole number in range and rejects rewritten input", () => {
+    expect(parseSticks("0")).toEqual({ ok: true, pairs: 0 });
+    expect(parseSticks("10")).toEqual({ ok: true, pairs: 10 });
+    expect(parseSticks("-1").ok).toBe(false);
+    expect(parseSticks("1.0").ok).toBe(false);
+    expect(parseSticks("11").ok).toBe(false);
+  });
+
+  it("leaves 1.0 as typed instead of turning it into 10 pairs", () => {
+    let draft = run(
+      { type: "attendeeAdded", id: "a" },
+      asha({ name: "Asha", dates: ["2026-11-10"] }),
+      { type: "attendeeAgeChanged", id: "a", ageText: "30" },
+      { type: "sticksChanged", text: "1.0" },
+    );
+    expect(draft.sticksText).toBe("1.0");
+    expect(toSelection(draft)).toBeNull();
+    draft = bookingReducer(draft, { type: "sticksChanged", text: "2" });
+    expect(toSelection(draft)?.extras.sticksPairs).toBe(2);
   });
 });
 

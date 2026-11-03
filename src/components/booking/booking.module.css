@@ -1,7 +1,13 @@
 .page {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 1.5rem 1rem 6rem;
+  padding: 1.5rem 1rem 12rem;
+}
+
+@media (min-width: 960px) {
+  .page {
+    padding-bottom: 2rem;
+  }
 }
 
 .header {
@@ -50,13 +56,19 @@
 
 .stepButton:disabled {
   cursor: default;
-  opacity: 0.7;
+  opacity: 0.55;
 }
 
-.stepCurrent {
-  background: var(--bright-gold);
-  color: var(--primary-dark);
+.stepCurrent,
+.stepCurrent:disabled {
+  background: var(--primary);
+  color: var(--heading);
   font-weight: 700;
+  opacity: 1;
+}
+
+.stepDone {
+  border-color: var(--gold);
 }
 
 .card {
@@ -69,7 +81,14 @@
 }
 
 .card :focus-visible {
-  outline-color: var(--primary-dark);
+  outline: 3px solid var(--heading);
+  outline-offset: 2px;
+}
+
+.card a,
+.errorSummary a,
+.error a {
+  color: var(--heading);
 }
 
 .card h2,
@@ -149,7 +168,28 @@
 .option input {
   width: 1.15rem;
   height: 1.15rem;
-  accent-color: var(--primary-dark);
+  accent-color: var(--primary);
+}
+
+.dateOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.75rem;
+  border: 2px solid #d9c9ad;
+  border-radius: 8px;
+  color: var(--heading);
+  cursor: pointer;
+}
+
+.dateOption:has(input:checked) {
+  border-color: var(--primary);
+  background: #f6e7c4;
+}
+
+.dateOption:has(input:disabled) {
+  cursor: not-allowed;
 }
 
 .optionDisabled {
@@ -189,9 +229,13 @@
 }
 
 .primaryButton {
-  border: 2px solid var(--primary-dark);
+  border: 2px solid var(--heading);
+  background: var(--primary);
+  color: var(--heading);
+}
+
+.primaryButton:hover:not(:disabled) {
   background: var(--bright-gold);
-  color: var(--primary-dark);
 }
 
 .primaryButton:disabled {
@@ -208,6 +252,12 @@
 .onDark.secondaryButton {
   border-color: var(--bright-gold);
   color: var(--cream);
+}
+
+.onDarkText,
+.onDarkText .badge {
+  color: var(--cream);
+  border-color: var(--cream);
 }
 
 .linkButton {
@@ -367,6 +417,11 @@
   font-size: 1.2rem;
 }
 
+.summaryStatus {
+  margin: 0.35rem 0 0;
+  color: var(--heading);
+}
+
 .summaryTotal {
   font-weight: 700;
   font-size: 1.2rem;
@@ -376,12 +431,18 @@
   display: inline-block;
 }
 
+.summaryBody {
+  max-height: min(50vh, 24rem);
+  overflow: auto;
+}
+
 @media (min-width: 960px) {
   .summaryToggle {
     display: none;
   }
   .summaryBody {
     display: block !important;
+    max-height: none;
   }
 }
 

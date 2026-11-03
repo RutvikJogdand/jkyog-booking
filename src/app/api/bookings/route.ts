@@ -75,6 +75,8 @@ export async function POST(request: Request) {
         409,
         "out_of_stock",
         `Not enough left: ${result.productIds.map((id) => PRICES[id].name).join(", ")}. Please change your selection.`,
+        [],
+        result.productIds,
       );
     case "declined":
       return errorResponse(

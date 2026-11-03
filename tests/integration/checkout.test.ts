@@ -5,12 +5,37 @@ import type { Selection } from "@/domain/booking/types";
 import { findBookingByToken } from "@/server/booking-repository";
 import { checkout, type CheckoutInput } from "@/server/booking-service";
 
-// Runs against the Neon "test" branch only. next/jest loads TEST_DATABASE_URL from .env.test.local.
+// These tests delete every booking and reset stock. They run only when the URL is
+// explicitly marked disposable and is not the same database as DATABASE_URL.
 const connectionString = process.env.TEST_DATABASE_URL;
-if (!connectionString) {
-  throw new Error("TEST_DATABASE_URL is not set; refusing to run.");
-}
+assertDisposableTestDatabase(connectionString);
 const pool = new Pool({ connectionString });
+
+function assertDisposableTestDatabase(
+  url: string | undefined,
+): asserts url is string {
+  if (!url) throw new Error("TEST_DATABASE_URL is not set; refusing to run.");
+  if (process.env.TEST_DATABASE_IS_DISPOSABLE !== "1") {
+    throw new Error(
+      "Set TEST_DATABASE_IS_DISPOSABLE=1 to confirm this database can be wiped.",
+    );
+  }
+  const host = new URL(url).hostname;
+  const local = host === "localhost" || host === "127.0.0.1";
+  if (!local && !host.endsWith(".neon.tech")) {
+    throw new Error(`Refusing to reset a database on ${host}.`);
+  }
+  const appUrl = process.env.DATABASE_URL;
+  if (appUrl && databaseHost(new URL(appUrl).hostname) === databaseHost(host)) {
+    throw new Error(
+      "TEST_DATABASE_URL uses the same database host as DATABASE_URL. Refusing to reset it.",
+    );
+  }
+}
+
+function databaseHost(hostname: string): string {
+  return hostname.replace("-pooler", "");
+}
 
 const STARTING_STOCK = {
   day_adult: 380,

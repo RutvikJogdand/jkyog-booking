@@ -12,9 +12,17 @@ export function errorResponse(
   code: string,
   message: string,
   fields: readonly FieldError[] = [],
+  productIds?: readonly string[],
 ): Response {
   return Response.json(
-    { error: { code, message, fields } },
+    {
+      error: {
+        code,
+        message,
+        fields,
+        ...(productIds === undefined ? {} : { productIds }),
+      },
+    },
     { status, headers: NO_STORE },
   );
 }

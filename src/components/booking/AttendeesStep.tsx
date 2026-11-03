@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch } from "react";
+import { useEffect, useRef, type Dispatch } from "react";
 import { categoryForAge, parseAgeInput } from "@/domain/booking/age";
 import {
   FESTIVAL_DATES,
@@ -19,7 +19,12 @@ import {
 import styles from "./booking.module.css";
 import { DATE_LABELS, formatUsd } from "./format";
 import { IssueList } from "./IssueList";
-import { issuesFor, type Availability, type UiIssue } from "./step-checks";
+import {
+  issuesFor,
+  messagesForField,
+  type Availability,
+  type UiIssue,
+} from "./step-checks";
 
 interface Props {
   draft: Draft;
@@ -42,6 +47,25 @@ export function AttendeesStep({
   availability,
   prices,
 }: Props) {
+  const attendeeCount = useRef(draft.attendees.length);
+  const groupCount = useRef(draft.familyGroups.length);
+  useEffect(() => {
+    if (draft.attendees.length > attendeeCount.current) {
+      const added = draft.attendees[draft.attendees.length - 1];
+      document.getElementById(`${added?.id}-name`)?.focus();
+    } else if (draft.attendees.length < attendeeCount.current) {
+      document.getElementById("add-person")?.focus();
+    }
+    attendeeCount.current = draft.attendees.length;
+  }, [draft.attendees]);
+  useEffect(() => {
+    if (draft.familyGroups.length > groupCount.current) {
+      const added = draft.familyGroups[draft.familyGroups.length - 1];
+      document.getElementById(`group-${added?.id}-dates`)?.focus();
+    }
+    groupCount.current = draft.familyGroups.length;
+  }, [draft.familyGroups]);
+
   return (
     <>
       <IssueList messages={issuesFor(issues, "general")} />
@@ -60,7 +84,7 @@ export function AttendeesStep({
           index={i}
           draft={draft}
           dispatch={dispatch}
-          messages={issuesFor(issues, `attendee:${attendee.id}`)}
+          issues={issues}
           availability={availability}
           prices={prices}
         />
@@ -68,6 +92,7 @@ export function AttendeesStep({
 
       <div className={styles.actions}>
         <button
+          id="add-person"
           type="button"
           className={`${styles.secondaryButton} ${styles.onDark}`}
           onClick={() =>
@@ -85,9 +110,9 @@ export function AttendeesStep({
         added as their own person with &quot;Choose days&quot;.
       </p>
       {availability.family === 0 && (
-        <p>
+        <p className={styles.onDarkText}>
           <span className={styles.badge}>Sold out</span> Family Passes are sold
-          out.
+          out. A group already added can still be edited or removed.
         </p>
       )}
 
@@ -112,11 +137,15 @@ export function AttendeesStep({
             aria-labelledby={`group-${group.id}-title`}
           >
             <h3 id={`group-${group.id}-title`}>Family Pass {j + 1}</h3>
-            <fieldset className={styles.fieldset}>
+            <fieldset
+              id={`group-${group.id}-dates`}
+              className={styles.fieldset}
+              tabIndex={-1}
+            >
               <legend>Dates ({formatUsd(prices.family)} per date)</legend>
               <div className={styles.options}>
                 {FESTIVAL_DATES.map((date) => (
-                  <label key={date} className={styles.option}>
+                  <label key={date} className={styles.dateOption}>
                     <input
                       type="checkbox"
                       checked={group.dates.includes(date)}
@@ -134,14 +163,69 @@ export function AttendeesStep({
               </div>
             </fieldset>
             <p>
-              Members:{" "}
               {members.length === 0
-                ? "none yet. Choose this Family Pass on each person's card."
-                : members.map(({ a, i }) => displayName(a, i)).join(", ")}
+                ? "No members yet."
+                : members
+                    .map(({ a, i }) => {
+                      const memberAge = parseAgeInput(a.ageText);
+                      const ageLabel = memberAge.ok
+                        ? `age ${memberAge.age} on their first visit`
+                        : "age not entered";
+                      return `${displayName(a, i)} (${ageLabel})`;
+                    })
+                    .join(", ")}
             </p>
-            <p className={styles.ticketLine}>
-              Adults: {adults} of 2 · Children: {children} of 2
-            </p>
+            <p className={styles.ticketLine}>{familyHint(adults, children)}</p>
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() =>
+                  dispatch({
+                    type: "attendeeAdded",
+                    id: crypto.randomUUID(),
+                    familyId: group.id,
+                  })
+                }
+              >
+                Add a member
+              </button>
+            </div>
+            {draft.attendees.some(
+              (a) => !(a.mode === "family" && a.familyId === group.id),
+            ) && (
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor={`assign-${group.id}`}>
+                  Or add someone already listed
+                </label>
+                <select
+                  id={`assign-${group.id}`}
+                  className={styles.select}
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value === "") return;
+                    dispatch({
+                      type: "attendeeChanged",
+                      id: e.target.value,
+                      changes: { mode: "family", familyId: group.id },
+                    });
+                  }}
+                >
+                  <option value="">Choose a person</option>
+                  {draft.attendees
+                    .map((a, i) => ({ a, i }))
+                    .filter(
+                      ({ a }) =>
+                        !(a.mode === "family" && a.familyId === group.id),
+                    )
+                    .map(({ a, i }) => (
+                      <option key={a.id} value={a.id}>
+                        {displayName(a, i)}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
             <IssueList messages={issuesFor(issues, `group:${group.id}`)} />
             <button
               type="button"
@@ -165,7 +249,7 @@ export function AttendeesStep({
             dispatch({ type: "familyGroupAdded", id: crypto.randomUUID() })
           }
         >
-          Add a Family Pass
+          Start a Family Pass
         </button>
       </div>
     </>
@@ -177,7 +261,7 @@ function AttendeeCard({
   index,
   draft,
   dispatch,
-  messages,
+  issues,
   availability,
   prices,
 }: {
@@ -185,7 +269,7 @@ function AttendeeCard({
   index: number;
   draft: Draft;
   dispatch: Dispatch<Action>;
-  messages: string[];
+  issues: UiIssue[] | null;
   availability: Availability;
   prices: Record<ProductId, number>;
 }) {
@@ -197,10 +281,50 @@ function AttendeeCard({
     changes: Extract<Action, { type: "attendeeChanged" }>["changes"],
   ) => dispatch({ type: "attendeeChanged", id, changes });
 
-  const modes: { value: AttendMode; label: string }[] = [
-    { value: "days", label: "Choose days" },
-    { value: "all_days", label: "All five days (All-Day Pass)" },
-    { value: "family", label: "With a Family Pass group" },
+  const category = age.ok ? categoryForAge(age.age) : null;
+  const daySoldOut =
+    category === "adult"
+      ? availability.day_adult === 0
+      : category === "child"
+        ? availability.day_child === 0
+        : false;
+  const allDaySoldOut =
+    category === "adult"
+      ? availability.all_days_adult === 0
+      : category === "child"
+        ? availability.all_days_child === 0
+        : false;
+  const familySoldOut = availability.family === 0 && attendee.mode !== "family";
+  const fieldMessages = (fieldId: string) => messagesForField(issues, fieldId);
+  const modes: {
+    value: AttendMode;
+    label: string;
+    disabled: boolean;
+    note: string;
+  }[] = [
+    {
+      value: "days",
+      label: "Choose days",
+      disabled: daySoldOut && attendee.mode !== "days",
+      note: daySoldOut ? "Sold out for this age" : "",
+    },
+    {
+      value: "all_days",
+      label: "All five days (All-Day Pass)",
+      disabled: allDaySoldOut && attendee.mode !== "all_days",
+      note:
+        !age.ok && availability.all_days_adult === 0
+          ? "Adult: sold out"
+          : allDaySoldOut
+            ? "Sold out for this age"
+            : "",
+    },
+    {
+      value: "family",
+      label: "With a Family Pass group",
+      disabled: familySoldOut,
+      note: availability.family === 0 ? "Sold out" : "",
+    },
   ];
 
   return (
@@ -220,37 +344,51 @@ function AttendeeCard({
           className={styles.input}
           value={attendee.name}
           autoComplete="off"
+          aria-invalid={fieldMessages(`${id}-name`).length > 0 || undefined}
+          aria-describedby={
+            fieldMessages(`${id}-name`).length > 0
+              ? `${id}-name-error`
+              : undefined
+          }
           onChange={(e) => change({ name: e.target.value })}
+        />
+        <IssueList
+          id={`${id}-name-error`}
+          messages={fieldMessages(`${id}-name`)}
         />
       </div>
 
-      <fieldset className={styles.fieldset}>
+      <fieldset id={`${id}-mode`} className={styles.fieldset} tabIndex={-1}>
         <legend>How will they attend?</legend>
         <div className={styles.options}>
           {modes.map((mode) => (
-            <label key={mode.value} className={styles.option}>
+            <label
+              key={mode.value}
+              className={`${styles.option} ${mode.disabled ? styles.optionDisabled : ""}`}
+            >
               <input
                 type="radio"
                 name={`${id}-mode`}
                 checked={attendee.mode === mode.value}
+                disabled={mode.disabled}
                 onChange={() => change({ mode: mode.value })}
               />
               {mode.label}
-              {mode.value === "all_days" &&
-                availability.all_days_adult === 0 && (
-                  <span className={styles.badge}>Adult: sold out</span>
-                )}
+              {mode.note !== "" && (
+                <span className={styles.badge}>{mode.note}</span>
+              )}
             </label>
           ))}
         </div>
+        <IssueList messages={fieldMessages(`${id}-mode`)} />
       </fieldset>
 
       {attendee.mode === "days" && (
-        <fieldset className={styles.fieldset}>
+        <fieldset id={`${id}-dates`} className={styles.fieldset} tabIndex={-1}>
           <legend>Which days?</legend>
           <div className={styles.options}>
             {FESTIVAL_DATES.map((date) => (
-              <label key={date} className={styles.option}>
+              <label key={date} className={styles.dateOption}>
                 <input
                   type="checkbox"
                   checked={attendee.dates.includes(date)}
@@ -263,8 +401,9 @@ function AttendeeCard({
             ))}
           </div>
           {first && (
-            <p className={styles.hint}>First day: {DATE_LABELS[first]}</p>
+            <p className={styles.hint}>First visit: {DATE_LABELS[first]}</p>
           )}
+          <IssueList messages={fieldMessages(`${id}-dates`)} />
         </fieldset>
       )}
 
@@ -280,6 +419,12 @@ function AttendeeCard({
           <select
             id={`${id}-first`}
             className={styles.select}
+            aria-invalid={fieldMessages(`${id}-first`).length > 0 || undefined}
+            aria-describedby={
+              fieldMessages(`${id}-first`).length > 0
+                ? `${id}-first-error`
+                : undefined
+            }
             value={attendee.allDaysFirstVisit ?? ""}
             onChange={(e) =>
               change({
@@ -297,6 +442,14 @@ function AttendeeCard({
               </option>
             ))}
           </select>
+          <p className={styles.hint}>
+            The pass covers all five days. Age is calculated on this first
+            visit, which can be later than the first festival day.
+          </p>
+          <IssueList
+            id={`${id}-first-error`}
+            messages={fieldMessages(`${id}-first`)}
+          />
         </div>
       )}
 
@@ -308,6 +461,12 @@ function AttendeeCard({
           <select
             id={`${id}-family`}
             className={styles.select}
+            aria-invalid={fieldMessages(`${id}-family`).length > 0 || undefined}
+            aria-describedby={
+              fieldMessages(`${id}-family`).length > 0
+                ? `${id}-family-error`
+                : undefined
+            }
             value={attendee.familyId ?? ""}
             onChange={(e) =>
               change({
@@ -326,6 +485,10 @@ function AttendeeCard({
               </option>
             ))}
           </select>
+          <IssueList
+            id={`${id}-family-error`}
+            messages={fieldMessages(`${id}-family`)}
+          />
           {first && (
             <p className={styles.hint}>
               Dates from the Family Pass. First day: {DATE_LABELS[first]}
@@ -351,7 +514,12 @@ function AttendeeCard({
           style={{ maxWidth: "8rem" }}
           inputMode="numeric"
           disabled={first === null}
-          aria-describedby={`${id}-age-hint`}
+          aria-invalid={fieldMessages(`${id}-age`).length > 0 || undefined}
+          aria-describedby={
+            fieldMessages(`${id}-age`).length > 0
+              ? `${id}-age-hint ${id}-age-error`
+              : `${id}-age-hint`
+          }
           value={attendee.ageText}
           onChange={(e) =>
             dispatch({
@@ -360,6 +528,10 @@ function AttendeeCard({
               ageText: e.target.value,
             })
           }
+        />
+        <IssueList
+          id={`${id}-age-error`}
+          messages={fieldMessages(`${id}-age`)}
         />
       </div>
 
@@ -383,8 +555,6 @@ function AttendeeCard({
         </p>
       )}
 
-      <IssueList messages={messages} />
-
       <button
         type="button"
         className={styles.linkButton}
@@ -394,6 +564,33 @@ function AttendeeCard({
       </button>
     </section>
   );
+}
+
+function familyHint(adults: number, children: number): string {
+  const parts: string[] = [];
+  const needAdults = 2 - adults;
+  const needChildren = 2 - children;
+  if (needAdults > 0) {
+    parts.push(
+      needAdults === 1
+        ? "Add one adult aged 12 or older."
+        : `Add ${needAdults} adults aged 12 or older.`,
+    );
+  }
+  if (needChildren > 0) {
+    parts.push(
+      needChildren === 1
+        ? "Add one child aged 5–11."
+        : `Add ${needChildren} children aged 5–11.`,
+    );
+  }
+  if (adults > 2) parts.push("This group has more than two adults.");
+  if (children > 2)
+    parts.push("This group has more than two children aged 5–11.");
+  if (parts.length === 0) {
+    return "This Family Pass has two adults and two children. Under-fives are added as extra people, not as these four places.";
+  }
+  return parts.join(" ");
 }
 
 function ticketText(

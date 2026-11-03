@@ -1,6 +1,6 @@
 # Test cases
 
-Results recorded on 3 November 2026. "Automated" checks run with `npm test` (unit, 142 tests) and `npm run test:integration` (11 tests against the Neon `test` branch). "Browser" checks were run by clicking through the production build (`next start`) connected to the Neon `test` branch.
+Results recorded on 3 November 2026. The first automated run had 142 unit tests. After the recovery and form fixes, `npm test` has 157 unit and component tests. `npm run test:integration` still has 11 PostgreSQL tests and now refuses to run unless `TEST_DATABASE_IS_DISPOSABLE=1` and the test host is not the application database. The later browser checks are Playwright tests in `tests/browser`, using mocked festival, quote and checkout responses so they do not change stock.
 
 ## Money, ages and promos (automated, `src/domain`, `src/app/api/quote`)
 
@@ -66,7 +66,28 @@ Small issues found in that run were fixed afterwards and covered by unit tests o
 | `GET /api/health` on https://jkyog-booking.vercel.app | `200`, database ok | Pass |
 | `GET /api/event` | `200` with starting stock | Pass |
 
+## Follow-up checks (same day, after the review fixes)
+
+| Case | Expected | Actual |
+| --- | --- | --- |
+| Unit and component tests | 157 passing, including checkout classification, sticks text, summary states, clipboard failure and the stock error's product ids | Pass |
+| TypeScript, ESLint, Prettier | No errors | Pass |
+| PostgreSQL integration | 11 passing on the disposable test branch; cleanup refused if that branch is the app database | Pass |
+| Lost checkout response, reload, same key and body | Retry returns the saved booking response and does not send a new request | Pass, Playwright, desktop and 390px |
+| Decline, then a different simulation | New key and the new choice | Pass |
+| Uncertain result | Payment choice hidden; retry keeps the saved choice | Pass |
+| Dinner sells out after it was selected | Checkbox stays and can be cleared; checkout sends product ids | Pass |
+| Remove the only person | Summary amount becomes a dash, not the old total | Pass |
+| Slow quote for an older age | Current total stays with the newer selection | Pass |
+| Sticks `-1` and `1.0` | Text stays unchanged and an error is shown | Pass |
+| Continue with nobody added | Error summary is focused; its link focuses Add a person; Enter adds a person and focuses the name | Pass |
+| Family Pass with one adult | "Add one adult aged 12 or older." and "Add 2 children aged 5–11." | Pass |
+| `FLAT20` after sticks are removed | The rejection and Remove code are shown, not "Applied" or "Updating total…" | Pass |
+| Phone width | Continue button can sit above the summary bar | Pass |
+| `npm run build` | Production build | Pass |
+
 ## Not checked
 
-- Keyboard-only and screen-reader passes were not done separately; controls are native inputs and buttons with visible labels and focus outlines.
-- No Playwright suite.
+- A full keyboard-only pass and a screen-reader pass were not done by hand. Playwright checked the first error focus, the summary link, and Enter on Add a person.
+- The live Vercel site was not redeployed, so the deployed booking flow was not run again.
+- The Playwright receipt page is a stand-in response. Reopening a real saved receipt remains covered by the PostgreSQL test, not by a browser against production.

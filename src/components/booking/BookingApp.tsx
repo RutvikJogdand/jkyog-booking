@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState } from "react";
+import {
+  eventResponseSchema,
+  type EventResponse,
+} from "@/domain/booking/responses";
 import { PRODUCT_IDS, type ProductId } from "@/domain/booking/types";
 import { AttendeesStep } from "./AttendeesStep";
 import {
@@ -11,25 +15,22 @@ import {
 } from "./booking-reducer";
 import styles from "./booking.module.css";
 import { ExtrasStep } from "./ExtrasStep";
+import { formatDates } from "./format";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentStep } from "./PaymentStep";
 import { ReviewStep } from "./ReviewStep";
 import {
+  fieldForServerPath,
   stepOneIssues,
   stepTwoIssues,
   type Availability,
   type ProductNames,
   type UiIssue,
 } from "./step-checks";
+import { useCheckout } from "./use-checkout";
 import { useQuote } from "./use-quote";
 
 type Step = 1 | 2 | 3 | 4;
-
-interface EventData {
-  event: { name: string; venue: string };
-  products: { id: ProductId; name: string; unitPriceCents: number }[];
-  availability: Availability;
-}
 
 const STEP_NAMES: Record<Step, string> = {
   1: "People and tickets",
@@ -38,30 +39,48 @@ const STEP_NAMES: Record<Step, string> = {
   4: "Payment",
 };
 
+const NEXT_LABEL: Record<1 | 2 | 3, string> = {
+  1: "Continue to extras",
+  2: "Review booking",
+  3: "Continue to payment",
+};
+
+const EXTRA_PRODUCTS = new Set<ProductId>([
+  "dandiya_sticks",
+  "dinner_plate",
+  "garba_workshop",
+]);
+
 export function BookingApp() {
-  const [eventData, setEventData] = useState<EventData | null>(null);
+  const [eventData, setEventData] = useState<EventResponse | null>(null);
   const [eventFailed, setEventFailed] = useState(false);
   const [eventVersion, setEventVersion] = useState(0);
   const [draft, dispatch] = useReducer(bookingReducer, initialDraft);
-  const [step, setStep] = useState<Step>(1);
+  const [chosenStep, setChosenStep] = useState<Step | null>(null);
   const [showIssues, setShowIssues] = useState<Record<Step, boolean>>({
     1: false,
     2: false,
     3: false,
     4: false,
   });
+  const focusErrors = useRef(false);
   const [stepMessage, setStepMessage] = useState<string | null>(null);
+  const [simulation, setSimulation] = useState<"success" | "decline">(
+    "success",
+  );
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
+  const checkout = useCheckout();
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/event", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("event failed");
-        const data = (await response.json()) as EventData;
+        const parsed = eventResponseSchema.safeParse(await response.json());
+        if (!parsed.success) throw new Error("event shape");
         if (!cancelled) {
-          setEventData(data);
+          setEventData(parsed.data);
           setEventFailed(false);
         }
       })
@@ -78,26 +97,24 @@ export function BookingApp() {
       firstRender.current = false;
       return;
     }
-    headingRef.current?.focus();
-  }, [step]);
+    if (!checkout.locked) headingRef.current?.focus();
+  }, [chosenStep, checkout.locked]);
 
+  const step = chosenStep ?? (checkout.locked || checkout.restored ? 4 : 1);
   const selection = toSelection(draft);
   const quote = useQuote(selection);
 
   if (eventData === null) {
     return (
-      <main className={styles.page}>
-        <Header />
+      <main id="main" className={styles.page}>
+        <Header event={null} />
         {eventFailed ? (
           <div className={styles.card} role="alert">
             <p>We couldn&apos;t load the festival details.</p>
             <button
               type="button"
               className={styles.primaryButton}
-              onClick={() => {
-                setEventFailed(false);
-                setEventVersion((n) => n + 1);
-              }}
+              onClick={() => setEventVersion((n) => n + 1)}
             >
               Try again
             </button>
@@ -128,21 +145,29 @@ export function BookingApp() {
   const canEnter = (target: Step): boolean => {
     if (target >= 2 && issuesByStep[1].length > 0) return false;
     if (target >= 3 && issuesByStep[2].length > 0) return false;
-    if (target >= 4 && (quote.status !== "ready" || quote.quote === null))
+    if (target >= 4 && (quote.status !== "ready" || quote.quote === null)) {
       return false;
+    }
     return true;
   };
 
-  function goTo(target: Step) {
+  function goTo(target: Step, force = false) {
+    if (checkout.locked && !force) return;
     setStepMessage(null);
-    setStep(target);
+    setChosenStep(target);
   }
 
   function next() {
+    if (checkout.locked) return;
     if (step === 1 || step === 2) {
       if (issuesByStep[step].length > 0) {
-        setShowIssues((s) => ({ ...s, [step]: true }));
-        document.getElementById("error-summary")?.focus();
+        setShowIssues((current) => ({ ...current, [step]: true }));
+        focusErrors.current = true;
+        queueMicrotask(() => {
+          if (!focusErrors.current) return;
+          document.getElementById("error-summary")?.focus();
+          focusErrors.current = false;
+        });
         return;
       }
     }
@@ -157,30 +182,105 @@ export function BookingApp() {
     goTo((step + 1) as Step);
   }
 
+  async function pay() {
+    const result = await checkout.submit(
+      checkout.phase === "uncertain" || !selection || !quote.quote
+        ? ""
+        : JSON.stringify({
+            booker: toBooker(draft.booker),
+            selection,
+            expectedTotalCents: quote.quote.totalCents,
+            simulation: quote.quote.totalCents === 0 ? "success" : simulation,
+          }),
+    );
+    if (result.kind !== "rejected") return;
+    if (result.code === "price_changed") {
+      quote.retry();
+      goTo(3, true);
+      setStepMessage(
+        "The price changed. Please review the new total before paying.",
+      );
+      return;
+    }
+    if (result.code === "out_of_stock") {
+      setEventVersion((n) => n + 1);
+      const extrasOnly =
+        result.productIds.length > 0 &&
+        result.productIds.every((id) => EXTRA_PRODUCTS.has(id));
+      goTo(extrasOnly ? 2 : 1, true);
+      setStepMessage(result.message);
+      return;
+    }
+    const target = result.fields
+      .map((field) => fieldForServerPath(field.path, draft))
+      .find((item) => item !== null);
+    if (target) {
+      goTo(target.step, true);
+      window.setTimeout(() => {
+        document.getElementById(target.fieldId)?.focus();
+      }, 0);
+    }
+  }
+
+  function openIssue(issue: UiIssue) {
+    const field = document.getElementById(issue.fieldId ?? "add-person");
+    field?.focus();
+  }
+
   const visibleIssues =
     (step === 1 || step === 2) && showIssues[step] ? issuesByStep[step] : null;
+  const currentQuote = quote.status === "ready" ? quote.quote : null;
 
   return (
-    <main className={styles.page}>
-      <Header />
+    <main id="main" className={styles.page}>
+      <Header event={eventData.event} />
+      {eventFailed && (
+        <div className={styles.card} role="alert">
+          <p>
+            Ticket availability couldn&apos;t be refreshed. The numbers on this
+            page may be out of date.
+          </p>
+          <button
+            type="button"
+            className={styles.primaryButton}
+            onClick={() => setEventVersion((n) => n + 1)}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+      {checkout.storageNote && (
+        <p className={styles.notice} role="status">
+          {checkout.storageNote}
+        </p>
+      )}
 
       <div className={styles.layout}>
         <div>
           <nav aria-label="Booking steps">
             <ol className={styles.steps}>
-              {([1, 2, 3, 4] as const).map((s) => (
-                <li key={s}>
-                  <button
-                    type="button"
-                    className={`${styles.stepButton} ${s === step ? styles.stepCurrent : ""}`}
-                    aria-current={s === step ? "step" : undefined}
-                    disabled={s === step || s > step}
-                    onClick={() => goTo(s)}
-                  >
-                    {s}. {STEP_NAMES[s]}
-                  </button>
-                </li>
-              ))}
+              {([1, 2, 3, 4] as const).map((s) => {
+                const completed = s < step && canEnter(s);
+                return (
+                  <li key={s}>
+                    <button
+                      type="button"
+                      className={`${styles.stepButton} ${s === step ? styles.stepCurrent : ""} ${completed ? styles.stepDone : ""}`}
+                      aria-current={s === step ? "step" : undefined}
+                      disabled={
+                        checkout.locked ||
+                        s === step ||
+                        s > step ||
+                        !canEnter(s)
+                      }
+                      onClick={() => goTo(s)}
+                    >
+                      {s}. {STEP_NAMES[s]}
+                      {completed ? " (done)" : ""}
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
           </nav>
 
@@ -219,9 +319,13 @@ export function BookingApp() {
               <ul>
                 {visibleIssues.map((issue) => (
                   <li key={`${issue.key}${issue.message}`}>
-                    <a href={`#${anchorFor(issue.key)}`}>
+                    <button
+                      type="button"
+                      className={styles.linkButton}
+                      onClick={() => openIssue(issue)}
+                    >
                       {issue.label}: {issue.message}
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -252,22 +356,48 @@ export function BookingApp() {
               selection={selection}
               quote={quote}
               dispatch={dispatch}
-              goToStep={goTo}
+              goToStep={(target) => goTo(target)}
             />
           )}
-          {step === 4 && selection && quote.quote && (
+          {step === 4 &&
+            (checkout.phase === "uncertain" ||
+              (checkout.phase === "submitting" && currentQuote === null)) && (
+              <section className={styles.card} aria-labelledby="recover-title">
+                <h2 id="recover-title">Finish this checkout</h2>
+                <p>
+                  We couldn&apos;t confirm whether this checkout went through.
+                  Retrying sends the same request again, so a booking that was
+                  already saved is not created twice.
+                </p>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  disabled={checkout.phase === "submitting"}
+                  onClick={() => void pay()}
+                >
+                  {checkout.phase === "submitting"
+                    ? "Processing…"
+                    : "Retry the same checkout"}
+                </button>
+              </section>
+            )}
+          {step === 4 && checkout.phase !== "uncertain" && currentQuote && (
             <PaymentStep
-              booker={toBooker(draft.booker)}
-              selection={selection}
-              quote={quote.quote}
-              onPriceChanged={() => {
-                quote.retry();
-                goTo(3);
-                setStepMessage(
-                  "The price changed. Please review the new total before paying.",
-                );
+              quote={currentQuote}
+              simulation={simulation}
+              onSimulationChange={setSimulation}
+              onPay={() => void pay()}
+              submitting={checkout.phase === "submitting"}
+              uncertain={false}
+              rejection={checkout.rejection}
+              onOpenField={(path) => {
+                const target = fieldForServerPath(path, draft);
+                if (!target) return;
+                goTo(target.step, true);
+                window.setTimeout(() => {
+                  document.getElementById(target.fieldId)?.focus();
+                }, 0);
               }}
-              onStockChanged={() => setEventVersion((n) => n + 1)}
             />
           )}
 
@@ -282,18 +412,19 @@ export function BookingApp() {
               <button
                 type="button"
                 className={`${styles.secondaryButton} ${styles.onDark}`}
+                disabled={checkout.locked}
                 onClick={() => goTo((step - 1) as Step)}
               >
                 Back
               </button>
             )}
-            {step < 4 && (
+            {(step === 1 || step === 2 || step === 3) && (
               <button
                 type="button"
                 className={styles.primaryButton}
                 onClick={next}
               >
-                Continue
+                {NEXT_LABEL[step]}
               </button>
             )}
           </div>
@@ -301,7 +432,7 @@ export function BookingApp() {
 
         <OrderSummary
           quote={quote}
-          promoCode={draft.promoCode}
+          promoCode={quote.status === "ready" ? draft.promoCode : null}
           hasAttendees={draft.attendees.length > 0}
         />
       </div>
@@ -309,19 +440,15 @@ export function BookingApp() {
   );
 }
 
-function Header() {
+function Header({ event }: { event: EventResponse["event"] | null }) {
+  const when =
+    event === null
+      ? "Loading festival details…"
+      : `${event.venue} · ${formatDates([event.dates[0]!, event.dates[event.dates.length - 1]!])}`;
   return (
     <header className={styles.header}>
-      <h1>Sharad Utsav 2026</h1>
-      <p>Radha Krishna Temple, Allen, Texas · 10–14 November 2026</p>
+      <h1>{event?.name ?? "Sharad Utsav"}</h1>
+      <p>{when}</p>
     </header>
   );
-}
-
-function anchorFor(key: string): string {
-  if (key.startsWith("attendee:")) return `attendee-${key.slice(9)}`;
-  if (key.startsWith("group:")) return `group-${key.slice(6)}`;
-  if (key.startsWith("booker.")) return "booker";
-  if (key === "extras") return "extras";
-  return "main";
 }

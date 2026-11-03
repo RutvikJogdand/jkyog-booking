@@ -9,8 +9,10 @@ out/
 .env*
 !.env.example
 
-# Test coverage
+# Test coverage and browser artifacts
 coverage/
+test-results/
+playwright-report/
 
 # Local Vercel configuration
 .vercel/

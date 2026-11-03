@@ -4,6 +4,7 @@ import {
   PRODUCT_IDS,
   WORKSHOP_DATES,
 } from "@/domain/booking/types";
+import { TEXT_LIMITS } from "@/domain/booking/validation";
 
 // Shape checks only. Booking rules, with their explanatory messages, live in
 // src/domain/booking/validation.ts. Strict objects reject unknown fields such as
@@ -27,7 +28,7 @@ const admission = z.discriminatedUnion("kind", [
 
 const attendee = z.strictObject({
   id,
-  name: z.string().max(200),
+  name: z.string().max(TEXT_LIMITS.name),
   firstVisitDate: festivalDate,
   ageAtFirstVisit: z.number(),
   admission,
@@ -47,7 +48,7 @@ export const selectionSchema = z.strictObject({
   attendees: z.array(attendee),
   familyGroups: z.array(familyGroup),
   extras,
-  promoCode: z.string().max(50).optional(),
+  promoCode: z.string().max(TEXT_LIMITS.promo).optional(),
 });
 
 export const quoteRequestSchema = z.strictObject({
@@ -55,10 +56,10 @@ export const quoteRequestSchema = z.strictObject({
 });
 
 const booker = z.strictObject({
-  name: z.string().max(200),
-  email: z.string().max(254),
+  name: z.string().max(TEXT_LIMITS.name),
+  email: z.string().max(TEXT_LIMITS.email),
   age: z.number(),
-  phone: z.string().max(30).optional(),
+  phone: z.string().max(TEXT_LIMITS.phone).optional(),
 });
 
 export const checkoutRequestSchema = z.strictObject({

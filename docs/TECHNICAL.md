@@ -92,7 +92,7 @@ Use JSON and integer cents. `quote` means `{ lines, subtotalCents, discountCents
 
 `expectedTotalCents` is the total the user reviewed. The server recalculates independently; a mismatch requires another review. Quotes do not reserve stock.
 
-Errors use `{ error: { code, message, fields } }`, where `fields` contains `{ path, message }` entries. Examples of paths are `selection.attendees.0.ageAtFirstVisit` and `selection.promoCode`.
+Errors use `{ error: { code, message, fields, productIds? } }`, where `fields` contains `{ path, message }` entries. Examples of paths are `selection.attendees.0.ageAtFirstVisit` and `selection.promoCode`. A stock shortage also includes `productIds`, such as `["garba_workshop"]`. The workshop id means the shared pool for both sessions, not one date by itself. The form uses those ids to open the right step; it does not read the sentence to decide which product ran out.
 
 - `400`: malformed JSON, unexpected fields or an invalid request shape/key.
 - `422`: an age, admission, date, extra or promo rule fails, including `FLAT20` below its minimum.
@@ -139,20 +139,16 @@ Seed missing inventory rows only. Do not reset existing stock on startup or depl
 
 ## 8. Form state and recovery
 
-- Use named reducer actions such as `attendeeAdded`, `dateRemoved` and `admissionChanged`. Date/person removal also removes invalid extras and produces an explanation.
-- Represent the flow as `editing`, `quoting`, `review`, `submitting` and `confirmed`, with errors kept alongside the entered data.
-- Every selection edit invalidates the reviewed quote. Cancel older quote requests and ignore any late response for an older draft.
-- Disable confirmation while the quote is stale or checkout is pending.
-- Create one checkout key for the exact submitted content. After a timeout, keep that content and key for retry; do not generate a fresh one or allow an uncertain booking to be replaced silently.
-- After a definite rejection and an edit, use a new key. Preserve enough pending-request information in tab-scoped session storage to retry after a reload; clear it once resolved. Never treat browser storage as authoritative booking or stock data.
+- Named reducer actions such as `attendeeAdded` and `sticksChanged` update the draft. Removing a date or a person also removes extras that no longer fit and records a dismissible explanation.
+- The quote hook debounces requests, cancels the previous one, and shows a result only when it answers the current selection. A previous total can stay on screen while a new one loads, labelled as previous. It is never shown as the current total. Payment stays disabled until the current quote is ready.
+- One checkout key is saved with the exact request in `sessionStorage` (`jkyog-pending-checkout`) before the request is sent. The browser waits at most 20 seconds. A timeout, a network failure, or a success response that is not a valid receipt is uncertain: the same key and body are kept, the wizard cannot be edited, and a retry after reload uses that saved request. A definite rejection, including a simulated decline, clears the saved attempt so the next checkout can use a new key. Confirmed bookings clear it and open the receipt. Storage that is missing or unreadable is reported; it is never treated as booking or stock data.
+- The server transaction and idempotency rules in section 7 are unchanged. A client timeout does not mean the database rolled back.
 
 ## 9. Tests and deployment
 
-- Start with Jest tests for age boundaries, first-visit changes, prices, promo failures, zero totals and Family Passes on multiple dates. Domain and database tests run in a Node environment.
-- Use React Testing Library for date edits, dependent-extra removal, stale quotes and error recovery. Component tests use a browser-like environment.
-- Use a separate real PostgreSQL database to test competing stock requests, repeated checkout keys and rollback after a failure. Mocks cannot prove these database behaviours.
-- Check the complete flow on phones and with a keyboard. Use browser checks for async Server Components rather than trying to unit-test them with Jest. Add a small Playwright suite if time allows.
-- Add CI checks for lint, types, unit/integration tests and build as those commands become available. Record skipped or unavailable checks honestly in `TEST-CASES.md`.
+- Jest tests cover age boundaries, prices, promo failures, zero totals, Family Passes, checkout classification, sticks text, and the stock error's product ids. Domain tests run in Node.
+- Browser checks cover the wizard. `tests/browser` uses Playwright with mocked festival, quote and checkout responses so it does not change stock. Real competing stock requests, repeated keys and rollback stay in `tests/integration` against a database marked `TEST_DATABASE_IS_DISPOSABLE=1`. That suite refuses to run when the test host matches `DATABASE_URL`.
+- GitHub Actions runs lint, types, formatting, unit tests and the production build. The integration job runs only when disposable database secrets are configured.
 
 | Environment variable | Purpose |
 | --- | --- |
@@ -160,6 +156,8 @@ Seed missing inventory rows only. Do not reset existing stock on startup or depl
 | `DATABASE_URL_UNPOOLED` | Direct connection for migration tooling. Neon's name for it; `neon deploy` and `neon env pull` write it. |
 | `NEON_BRANCH` | Neon branch name, written by `neon env pull`. Not read by the app. |
 | `TEST_DATABASE_URL` | Isolated test database, never production. |
+| `TEST_DATABASE_URL_UNPOOLED` | Direct connection used to migrate the test branch before integration tests. |
+| `TEST_DATABASE_IS_DISPOSABLE` | Must be `1` before integration tests delete bookings and reset stock. |
 
 Keep credentials server-only and out of Git. Commit a sanitised `.env.example` and ignore files containing real values. Use parameterized SQL and mark server modules as server-only.
 

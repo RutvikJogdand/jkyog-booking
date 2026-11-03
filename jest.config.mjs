@@ -11,5 +11,6 @@ export default createJestConfig({
     "<rootDir>/node_modules/",
     "<rootDir>/.next/",
     "<rootDir>/tests/integration/",
+    "<rootDir>/tests/browser/",
   ],
 });

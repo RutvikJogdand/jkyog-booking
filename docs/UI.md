@@ -1,6 +1,6 @@
 # Sharad Utsav — UI design
 
-This describes the screens, layout and interaction design. Business rules come from `docs/PRD.md`; architecture, API shapes and form state come from `docs/TECHNICAL.md`. Where this document makes a choice those files do not, it is marked **Proposal** so it can be reviewed. Unresolved items are listed in section 9.
+This describes the screens, layout and interaction design as built. Business rules come from `docs/PRD.md`; architecture, API shapes and form state come from `docs/TECHNICAL.md`. Choices that were open while designing are recorded as decisions in section 9 and in the README.
 
 Decisions confirmed for this document:
 
@@ -33,11 +33,11 @@ Step 5 is the confirmation page, reached after a successful checkout.
 
 - A step indicator listing the four steps with their names and "Step N of 4" text. Completed steps are buttons, so people can go back and edit (PRD section 2). Later steps are not clickable until earlier steps pass client-side checks.
 - The current step's heading receives focus when the step changes, so keyboard and screen-reader users land at the new content.
-- **Back** and **Continue** buttons at the bottom of each step. Continue runs that step's client-side checks. These are feedback only; the server still enforces every rule.
+- **Back** and one primary button at the bottom of each step: "Continue to extras", "Review booking", or "Continue to payment". Continue runs that step's client-side checks. These are feedback only; the server still enforces every rule. Completed steps can be opened again. A step stays unavailable when an earlier step no longer passes.
 
 **Order summary**:
 
-- **Proposal:** on wide screens, a sticky sidebar to the right of the wizard. On phones, a sticky bottom bar showing the total and a "View summary" button that expands the full summary in place. The breakpoint will be chosen during implementation and checked on a real phone.
+- On screens at least 960px wide, a sticky sidebar to the right of the wizard. On narrower screens, a solid cream bottom bar showing the current total, or a dash when there is no current total, plus a "View summary" button. The collapsed bar also shows whether the total is updating, incomplete or failed.
 - It shows only the latest server quote: tickets, extras, subtotal, savings and total, as listed in PRD section 5. Components never calculate the final price (TECHNICAL section 3).
 - Before anyone is added: "Add the first person who's coming to see a price."
 - While a quote is refreshing: "Updating total…", announced politely to screen readers. The previous figures are visibly marked as out of date, and confirmation is disabled (TECHNICAL section 8).
@@ -69,7 +69,7 @@ Rules shown in the card:
 - **Under 5 with "All five days":** free entry with all five dates selected. There is no under-five All-Day product.
 - **Under 5 with "With a Family Pass group":** inline error: "Children under 5 come free and don't fill one of the two child places. Choose 'Choose days' instead."
 - **Invalid ages:** a negative, fractional, non-numeric or empty age is rejected with a specific message. An empty field is never treated as 0, and "12abc" is never treated as 12 (TECHNICAL section 3).
-- **First day changes:** if an age was already entered, show the inline prompt "Their first day is now {date}. Check their age for that day." with a **The age is correct** button. Continue is blocked until it is confirmed or the age is edited (PRD section 6). **Proposal:** keep the entered age rather than clearing it.
+- **First day changes:** if an age was already entered, show the inline prompt "Their first day is now {date}. Check their age for that day." with a **The age is correct** button. Continue is blocked until it is confirmed or the age is edited (PRD section 6). The entered age is kept.
 - **Remove person:** removes their dinner and workshop selections, then shows a removal notice (section 6).
 
 ### Family Pass groups
@@ -87,7 +87,7 @@ Rules shown in the card:
   - Whole numbers from 0 to 10 pairs, and never more than the remaining stock.
   - The buttons have accessible labels ("Remove a pair", "Add a pair"). The decrement button is disabled at 0, and the increment button at 10 or at the remaining stock.
   - Typed values outside the range show an error: "Choose between 0 and 10 pairs." or "Only N pairs left."
-- **Dinner Plate** ($12 per person, per date): a grid of attendees × festival dates with one checkbox per cell. At most one plate per attendee per attendance date.
+- **Dinner Plate** ($12 per person, per date): one section per person, with a checkbox for each date they are attending. The person, date and price stay together. At most one plate per attendee per attendance date. A plate that is already selected stays visible if dinner sells out, so it can be removed. New plates are blocked.
   - Only dates the attendee is attending have a checkbox. Other cells read "Not attending".
   - Someone attending three days can choose up to three plates, one per day. Different attendees can each have a plate on the same date.
   - Under-fives can choose dinners at the normal price, with the note: "Entry is free for under-fives; extras are charged normally."
@@ -158,14 +158,14 @@ Colour tokens are from PRD section 7. Contrast ratios were calculated with the W
 | Gold accent text on the page | `brightGold` on `primaryDark` | 6.44 |
 | Card headings | `heading` on `cream` | 15.50 |
 | Card body text | `primary-text` on `cream` | 6.40 |
-| Primary button | `primaryDark` text on `brightGold` | 6.44 |
+| Primary button | `heading` text on `primary` `#C99B24` | 6.65 |
 | Focus ring on dark | `brightGold` around elements | 6.44 |
 | Focus ring on cream | `primaryDark` around elements | 12.71 |
 
 Cards:
 
 - Cream cards on the dark page.
-- **Proposal:** for the "translucent cards" requirement, use at least 90% cream opacity. At 90% over `#2C2C2C`, body text measures 5.33 and headings 12.91. Lower opacity must be checked again.
+- Cards use 95% cream over the dark page, above the 90% minimum. At 90% over `#2C2C2C`, body text measures 5.33 and headings 12.91. The order summary bar uses solid cream so the total stays readable over the form. Primary buttons use `#C99B24` and darken to `#D1AC3E` on hover. Links inside cream panels use heading colour, not gold.
 
 Contrast constraints found:
 
@@ -188,21 +188,21 @@ The planned files are in `src/components/booking/` (TECHNICAL section 2). Each i
 
 | Component | Responsibility |
 | --- | --- |
-| `BookingWizard` | Holds the reducer state, current step and navigation. |
-| `StepIndicator` | Step list and "Step N of 4". |
-| `AttendeesStep`, `AttendeeCard`, `FamilyGroupCard` | Step 1. |
-| `ExtrasStep`, `DinnerGrid`, `WorkshopPicker`, `ContactForm` | Step 2. |
-| `ReviewStep`, `PromoField` | Step 3. |
-| `PaymentStep` | Step 4 and checkout outcomes. |
-| `OrderSummary` | Sidebar or bottom bar showing the latest server quote. |
-| `ErrorSummary`, `FieldError`, `RemovalNotice` | Shared feedback. |
+| `BookingApp` | Holds the draft, the current step, festival data and checkout lock. |
+| `AttendeesStep` | People, dates, ages and Family Pass groups. |
+| `ExtrasStep` | Sticks, dinner, workshop and contact details. |
+| `ReviewStep` | Who is coming, the promo code and the itemized price. |
+| `PaymentStep` | Simulated payment for a current quote. |
+| `use-checkout` | Saves and retries one checkout request. |
+| `OrderSummary` | Sidebar or bottom bar. Shows a current total only for the current selection. |
+| `IssueList` | Field errors, linked from the summary. |
 
 The confirmation view lives in `src/app/confirmation/[token]/page.tsx`.
 
-## 9. Open questions
+## 9. Decisions from the design proposals
 
-The extra-quantity limits are settled; see PRD section 3 and the README's "Decisions I made". These proposals still need review:
+The extra-quantity limits are settled; see PRD section 3 and the README's "Decisions I made". These layout choices are now part of the app:
 
-1. When a first day changes, keep the entered age and ask for confirmation (section 3), rather than clearing it.
-2. A wide-screen sidebar and a phone bottom-bar summary (section 2).
-3. At least 90% opacity for cream cards (section 7).
+1. When a first day changes, the entered age is kept and must be confirmed (section 3).
+2. Wide screens use a sidebar. Narrow screens use a bottom-bar summary, from 960px (section 2).
+3. Cream cards are 95% opaque, above the 90% minimum in section 7.

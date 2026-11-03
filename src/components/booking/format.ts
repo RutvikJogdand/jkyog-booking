@@ -37,7 +37,7 @@ export function describeAdmission(
     case "day":
       return `${admission.category === "adult" ? "Adult" : "Child"} Day Pass · ${formatDates(admission.dates)}`;
     case "all_days":
-      return `${admission.category === "adult" ? "Adult" : "Child"} All-Day Pass · all five days`;
+      return `${admission.category === "adult" ? "Adult" : "Child"} All-Day Pass · covers all five days, from a first visit on ${DATE_LABELS[attendee.firstVisitDate]}`;
     case "family": {
       const group = familyGroups.find((g) => g.id === admission.familyId);
       return `Family Pass · ${group ? formatDates(group.dates) : ""}`;

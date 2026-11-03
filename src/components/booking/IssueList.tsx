@@ -1,9 +1,15 @@
 import styles from "./booking.module.css";
 
-export function IssueList({ messages }: { messages: readonly string[] }) {
+export function IssueList({
+  id,
+  messages,
+}: {
+  id?: string;
+  messages: readonly string[];
+}) {
   if (messages.length === 0) return null;
   return (
-    <ul className={styles.errorList}>
+    <ul id={id} className={styles.errorList}>
       {messages.map((message) => (
         <li key={message} className={styles.error}>
           <strong>Error:</strong> {message}

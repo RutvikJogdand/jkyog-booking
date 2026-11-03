@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  apiErrorSchema,
+  quoteResponseSchema,
+} from "@/domain/booking/responses";
 import type { Quote, Selection } from "@/domain/booking/types";
 
 export interface ApiFieldError {
@@ -33,16 +37,27 @@ export async function requestQuote(
     });
     const body: unknown = await response.json();
     if (response.ok) {
-      return { ok: true, quote: body as Quote };
+      const parsed = quoteResponseSchema.safeParse(body);
+      return parsed.success
+        ? { ok: true, quote: parsed.data }
+        : {
+            ok: false,
+            message: "We couldn't update the total.",
+            fields: [],
+          };
     }
-    const error = (
-      body as { error?: { message: string; fields: ApiFieldError[] } }
-    ).error;
-    return {
-      ok: false,
-      message: error?.message ?? "We couldn't update the total.",
-      fields: error?.fields ?? [],
-    };
+    const parsed = apiErrorSchema.safeParse(body);
+    return parsed.success
+      ? {
+          ok: false,
+          message: parsed.data.error.message,
+          fields: parsed.data.error.fields,
+        }
+      : {
+          ok: false,
+          message: "We couldn't update the total.",
+          fields: [],
+        };
   } catch (error) {
     if (signal?.aborted) throw error;
     return { ok: false, message: "We couldn't update the total.", fields: [] };
@@ -53,6 +68,7 @@ export async function requestQuote(
 // selection can never be shown for the current one.
 export function useQuote(selection: Selection | null): QuoteState {
   const key = selection === null ? null : JSON.stringify(selection);
+  const keyRef = useRef(key);
   const [result, setResult] = useState<{
     key: string;
     outcome: QuoteOutcome;
@@ -61,11 +77,13 @@ export function useQuote(selection: Selection | null): QuoteState {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    keyRef.current = key;
     if (key === null) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       requestQuote(JSON.parse(key) as Selection, controller.signal)
         .then((outcome) => {
+          if (keyRef.current !== key) return;
           setResult({ key, outcome });
           if (outcome.ok) setLastQuote(outcome.quote);
         })
