@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "jest"
+    "test": "jest",
+    "test:integration": "node --env-file=.env.test.local scripts/migrate.mjs TEST_DATABASE_URL_UNPOOLED && jest -c jest.integration.config.mjs --runInBand",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs"
   },
   "dependencies": {
     "@neon/config": "^1.10.0",
@@ -24,7 +26,8 @@
     "pg": "8.23.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "server-only": "0.0.1"
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@jest/globals": "30.5.2",
@@ -41,6 +44,6 @@
     "typescript": "5.9.3"
   },
   "overrides": {
-    "zod": "^4.6.6"
+    "zod": "$zod"
   }
 }

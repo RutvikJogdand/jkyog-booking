@@ -75,6 +75,14 @@ export interface Selection {
   promoCode?: string;
 }
 
+// The person paying. Their age is their age today, not on a festival date.
+export interface Booker {
+  name: string;
+  email: string;
+  age: number;
+  phone?: string;
+}
+
 export interface QuoteLine {
   productId: ProductId;
   description: string;

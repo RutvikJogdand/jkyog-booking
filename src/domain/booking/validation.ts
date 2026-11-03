@@ -2,11 +2,13 @@ import { categoryForAge, isValidAge, MAX_AGE } from "./age";
 import {
   FESTIVAL_DATES,
   type Attendee,
+  type Booker,
   type FamilyGroup,
   type FestivalDate,
   type Selection,
 } from "./types";
 
+export const MIN_BOOKER_AGE = 18;
 export const MAX_STICKS_PAIRS = 10;
 export const FAMILY_ADULTS = 2;
 export const FAMILY_CHILDREN = 2;
@@ -26,6 +28,9 @@ export function validateSelection(selection: Selection): ValidationIssue[] {
   const groupsById = new Map(selection.familyGroups.map((g) => [g.id, g]));
   const attendeesById = new Map(selection.attendees.map((a) => [a.id, a]));
 
+  if (selection.attendees.length === 0) {
+    add("attendees", "Add at least one person who is coming.");
+  }
   checkUniqueIds(selection.attendees, "attendees", add);
   checkUniqueIds(selection.familyGroups, "familyGroups", add);
 
@@ -70,6 +75,41 @@ export function validateSelection(selection: Selection): ValidationIssue[] {
     add,
   );
 
+  return issues;
+}
+
+// Paths are relative to the booker, e.g. "email".
+export function validateBooker(booker: Booker): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  if (booker.name.trim() === "") {
+    issues.push({ path: "name", message: "Enter your name." });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(booker.email.trim())) {
+    issues.push({
+      path: "email",
+      message: "Enter an email like name@example.com.",
+    });
+  }
+  if (!isValidAge(booker.age)) {
+    issues.push({
+      path: "age",
+      message: `Enter a whole-number age from ${MIN_BOOKER_AGE} to ${MAX_AGE}.`,
+    });
+  } else if (booker.age < MIN_BOOKER_AGE) {
+    issues.push({
+      path: "age",
+      message: `The person booking must be ${MIN_BOOKER_AGE} or older.`,
+    });
+  }
+  if (
+    booker.phone !== undefined &&
+    !/^\+?[0-9 ()\-.]{7,20}$/.test(booker.phone.trim())
+  ) {
+    issues.push({
+      path: "phone",
+      message: "Enter a phone number using digits, spaces, +, - or brackets.",
+    });
+  }
   return issues;
 }
 

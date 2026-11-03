@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import type { Attendee, Extras, FamilyGroup, Selection } from "./types";
-import { validateSelection } from "./validation";
+import { validateBooker, validateSelection } from "./validation";
 
 const noExtras: Extras = { sticksPairs: 0, dinners: [], workshops: [] };
 
@@ -75,6 +75,16 @@ describe("validateSelection", () => {
   });
 
   describe("attendees", () => {
+    it("requires at least one attendee, even when extras are chosen", () => {
+      const s = selection({ extras: { ...noExtras, sticksPairs: 2 } });
+      expect(validateSelection(s)).toEqual([
+        {
+          path: "attendees",
+          message: "Add at least one person who is coming.",
+        },
+      ]);
+    });
+
     it("requires a name", () => {
       const s = selection({
         attendees: [{ ...dayAdult("a", ["2026-11-10"]), name: "  " }],
@@ -241,7 +251,10 @@ describe("validateSelection", () => {
     });
 
     it("rejects a group with no members", () => {
-      const s = selection({ familyGroups: [familyGroup] });
+      const s = selection({
+        attendees: [dayAdult("a", ["2026-11-10"])],
+        familyGroups: [familyGroup],
+      });
       expect(paths(s)).toEqual(["familyGroups.0"]);
     });
 
@@ -288,7 +301,10 @@ describe("validateSelection", () => {
 
   describe("extras", () => {
     it.each([-1, 1.5, 11])("rejects %p pairs of sticks", (sticksPairs) => {
-      const s = selection({ extras: { ...noExtras, sticksPairs } });
+      const s = selection({
+        attendees: [dayAdult("a", ["2026-11-10"])],
+        extras: { ...noExtras, sticksPairs },
+      });
       expect(validateSelection(s)).toEqual([
         {
           path: "extras.sticksPairs",
@@ -324,6 +340,7 @@ describe("validateSelection", () => {
 
     it("rejects an extra for someone not in the booking", () => {
       const s = selection({
+        attendees: [dayAdult("a", ["2026-11-11"])],
         extras: {
           ...noExtras,
           workshops: [{ attendeeId: "ghost", date: "2026-11-11" }],
@@ -377,5 +394,36 @@ describe("validateSelection", () => {
       });
       expect(paths(s)).toEqual(["extras.dinners.1.date"]);
     });
+  });
+});
+
+describe("validateBooker", () => {
+  const booker = { name: "Priya", email: "priya@example.com", age: 35 };
+
+  it("accepts a valid booker with or without a phone", () => {
+    expect(validateBooker(booker)).toEqual([]);
+    expect(validateBooker({ ...booker, phone: "+1 (469) 555-0100" })).toEqual(
+      [],
+    );
+  });
+
+  it.each([
+    [{ name: " " }, "name"],
+    [{ email: "priya@" }, "email"],
+    [{ email: "priya example.com" }, "email"],
+    [{ age: 17 }, "age"],
+    [{ age: 18.5 }, "age"],
+    [{ age: 151 }, "age"],
+    [{ phone: "call me" }, "phone"],
+  ])("rejects %p at %s", (change, path) => {
+    expect(
+      validateBooker({ ...booker, ...change }).map((issue) => issue.path),
+    ).toEqual([path]);
+  });
+
+  it("explains the minimum booker age", () => {
+    expect(validateBooker({ ...booker, age: 17 })).toEqual([
+      { path: "age", message: "The person booking must be 18 or older." },
+    ]);
   });
 });
