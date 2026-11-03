@@ -27,11 +27,11 @@ Step 5 is the confirmation page, reached after a successful checkout.
 
 ## 2. Page layout
 
-**Header** (all screens): event name, "Radha Krishna Temple, Allen, Texas" and "10–14 November 2026", loaded from `GET /api/event`.
+**Header**: the event name from `GET /api/event`, the venue, and the date range written from that response (for this festival, "10–14 November 2026").
 
 **Wizard area**:
 
-- A step indicator listing the four steps with their names and "Step N of 4" text. Completed steps are buttons, so people can go back and edit (PRD section 2). Later steps are not clickable until earlier steps pass client-side checks.
+- A four-step indicator: People and tickets, Extras and contact, Review, Payment. The current step is marked, completed steps are buttons, and later steps stay unavailable until earlier checks pass (PRD section 2). "Step N of 4" remains the heading.
 - The current step's heading receives focus when the step changes, so keyboard and screen-reader users land at the new content.
 - **Back** and one primary button at the bottom of each step: "Continue to extras", "Review booking", or "Continue to payment". Continue runs that step's client-side checks. These are feedback only; the server still enforces every rule. Completed steps can be opened again. A step stays unavailable when an earlier step no longer passes.
 
@@ -50,22 +50,22 @@ Step 5 is the confirmation page, reached after a successful checkout.
 One card per person, added with **Add a person**. Fields in order:
 
 1. **Name** — required.
-2. **How will they attend?** — radio group:
+2. **Age on their first day** — asked before a ticket is chosen, because the age decides which passes are available. The label includes the date once a first day is known. It is not disabled while that date is still unknown.
+3. **How will they attend?** — shown after a valid age, as three selectable cards:
    - "Choose days" (Day Pass, or free entry for under-fives)
    - "All five days" (All-Day Pass)
    - "With a Family Pass group"
 3. **Dates**, depending on the choice above:
-   - *Choose days:* one checkbox per festival date (Tue 10 Nov … Sat 14 Nov). The first visit is the earliest checked date and is shown as text, for example "First day: Wed 11 Nov". TECHNICAL section 4 requires the first visit to equal the earliest selected date.
+   - *Choose days:* one date chip per festival date (Tue 10 Nov … Sat 14 Nov), laid out as a grid. The first visit is the earliest checked date and is shown as text, for example "First visit: Wed 11 Nov". TECHNICAL section 4 requires the first visit to equal the earliest selected date.
    - *All five days:* the text "Covers all five days" plus a **First day they'll come** select. The pass always covers all five dates (PRD section 3); the first day is used only to interpret their age.
    - *Family Pass:* a select listing the booking's family groups. The member's dates are shown read-only from the group.
-4. **Age on {first day}** — whole-number input. The label includes the actual date, with the hint: "Enter their age on the day they first attend the festival, not today's age." It is disabled until a first day is known.
-5. **Ticket** — read-only result line, derived from the age category and choice. Examples: "Child Day Pass · $8 per day · 2 days" and "Free entry (under 5)". Unit prices come from the `GET /api/event` catalogue; the total comes only from the quote.
+4. **Ticket** — read-only result line, derived from the age category and choice. Examples: "Child Day Pass · $8 per day · 2 days" and "Free entry (under 5)". Unit prices come from the `GET /api/event` catalogue; the total comes only from the quote. A sold-out choice is not left selected.
 
 Age categories (PRD section 4): under 5 means free entry, 5–11 means child admission and 12+ means adult admission.
 
 Rules shown in the card:
 
-- **Sold out:** Adult All-Day Pass starts with 0 stock. Its option stays visible but is disabled, with the text "Sold out" next to it, not just greyed out. Any other product that reaches zero is shown the same way.
+- **Sold out:** Adult All-Day Pass starts with 0 stock. Once the age is an adult, that choice is disabled and labelled "Sold out" before it can be selected. If it was already selected, it is switched back to choosing days. Any other product that reaches zero is shown the same way.
 - **Under 5 with "All five days":** free entry with all five dates selected. There is no under-five All-Day product.
 - **Under 5 with "With a Family Pass group":** inline error: "Children under 5 come free and don't fill one of the two child places. Choose 'Choose days' instead."
 - **Invalid ages:** a negative, fractional, non-numeric or empty age is rejected with a specific message. An empty field is never treated as 0, and "12abc" is never treated as 12 (TECHNICAL section 3).
@@ -74,33 +74,34 @@ Rules shown in the card:
 
 ### Family Pass groups
 
-- **Add a Family Pass** creates a group card with a checkbox per festival date. Each checked date is one $40 pass (PRD section 3).
-- The group card shows its members by listing the attendees who chose that group. There is no separate member list to edit (TECHNICAL section 4).
-- Composition status is written as text, for example "Adults: 2 of 2 · Children: 1 of 2 — add 1 child aged 5–11". It never relies on colour alone.
+- **Start a Family Pass** adds the pass in this same section. Its members are edited inside the pass, not as a second copy in the people list. Each checked date is one $40 pass (PRD section 3).
+- Adding a member creates an attendee on that pass. Someone who already has their own ticket can be moved in. There is no separate member list to edit (TECHNICAL section 4).
+- Composition is shown as "Adults: 1 of 2 · Children: 2 of 2", plus a sentence that says what is still missing. It never relies on colour alone.
 - Continue is blocked until each group has exactly two adults (12+) and two children (5–11).
 
 ## 4. Step 2 — Extras and contact
 
 ### Extras
 
-- **Dandiya Sticks** ($5 per pair): one quantity input for the booking, with decrement and increment buttons.
+- **Dandiya Sticks** ($5 per pair): one quantity for the whole booking. The note states that one pair is two sticks, and the chosen count is repeated as "2 pairs are 4 sticks." Zero means none.
   - Whole numbers from 0 to 10 pairs, and never more than the remaining stock.
   - The buttons have accessible labels ("Remove a pair", "Add a pair"). The decrement button is disabled at 0, and the increment button at 10 or at the remaining stock.
   - Typed values outside the range show an error: "Choose between 0 and 10 pairs." or "Only N pairs left."
-- **Dinner Plate** ($12 per person, per date): one section per person, with a checkbox for each date they are attending. The person, date and price stay together. At most one plate per attendee per attendance date. A plate that is already selected stays visible if dinner sells out, so it can be removed. New plates are blocked.
+- **Dinner Plate** ($12 per person, per date): not included with a ticket. One checkbox per person per date they are attending. Ticking adds one plate; unticking removes it. At most one plate per attendee per attendance date. A plate that is already selected stays visible if dinner sells out, so it can be removed. New plates are blocked.
   - Only dates the attendee is attending have a checkbox. Other cells read "Not attending".
   - Someone attending three days can choose up to three plates, one per day. Different attendees can each have a plate on the same date.
   - Under-fives can choose dinners at the normal price, with the note: "Entry is free for under-fives; extras are charged normally."
-- **Garba Workshop** ($20 per person, per session): Nov 11 and Nov 13 only, shown as one checkbox per session for each eligible attendee.
+- **Garba Workshop** ($20 per person, per session): not included. Nov 11 and Nov 13 only, shown as one checkbox per session for each eligible attendee. Unticking removes that place.
   - At most one place per attendee per session. One attendee may choose both sessions, for $40.
   - A session's checkbox appears only if the attendee's admission covers that date. All-Day Pass holders are covered on both dates, except dates before their declared first day (TECHNICAL section 4).
-  - Both sessions share the same 2 places. Shared availability is shown as text, for example "2 places left across both sessions."
-  - Once the booking's selections use up the remaining places, the other workshop checkboxes are disabled with "No places left". When none remain at all, it shows "Sold out".
+  - Both sessions use one pool of places. The note says so directly, for example "2 places are left for Wednesday and Friday together. Each day you tick uses one place."
+  - Dinner stock is hidden while plenty remains. It appears only when 10 or fewer plates are left, or when plates are sold out.
+  - Once the booking's selections use up the remaining places, the other workshop checkboxes are disabled with "No places left". When none remain at all, the note says the shared places are gone.
 
 ### Contact details
 
 - **Your name**, **Email**, **Your age today** and **Phone (optional)**.
-- Hint: "You don't need to attend. If you are coming, add yourself as a person in step 1."
+- A short note under the heading: "Your own details are fine here when you are booking for someone else. Add yourself in step 1 if you are coming too." The age field adds: "The person booking must be 18 or older today."
 - Validation messages: "Enter an email like name@example.com" and "The person booking must be 18 or older."
 
 ## 5. Steps 3–5 — Review, payment and confirmation

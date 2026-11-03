@@ -11,17 +11,40 @@
 }
 
 .header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(209, 172, 62, 0.4);
 }
 
 .header h1 {
-  margin: 0 0 0.25rem;
+  margin: 0.15rem 0 0.35rem;
   color: var(--bright-gold);
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
 }
 
 .header p {
   margin: 0;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--gold);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.card .kicker {
+  color: var(--heading);
+}
+
+.eventMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 0.65rem;
 }
 
 .layout {
@@ -37,38 +60,88 @@
 }
 
 .steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0 0 1rem;
-  padding: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin: 0 0 1.25rem;
+  padding: 0.35rem 0 0;
   list-style: none;
 }
 
+.steps::before {
+  content: "";
+  position: absolute;
+  top: calc(0.35rem + 1rem);
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: rgba(209, 172, 62, 0.45);
+}
+
 .stepButton {
-  border: 1px solid var(--bright-gold);
-  border-radius: 999px;
-  padding: 0.35rem 0.9rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.1rem 0.25rem;
+  border: none;
   background: transparent;
   color: var(--cream);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
+}
+
+.stepIndex {
+  z-index: 1;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 2px solid var(--gold);
+  border-radius: 999px;
+  background: var(--primary-dark);
+  font-weight: 700;
+}
+
+.stepLabel {
+  max-width: 8rem;
 }
 
 .stepButton:disabled {
   cursor: default;
-  opacity: 0.55;
+  opacity: 0.62;
 }
 
 .stepCurrent,
 .stepCurrent:disabled {
-  background: var(--primary);
-  color: var(--heading);
+  background: transparent;
+  color: var(--bright-gold);
   font-weight: 700;
   opacity: 1;
 }
 
-.stepDone {
+.stepCurrent .stepIndex,
+.stepCurrent:disabled .stepIndex {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--heading);
+}
+
+.stepDone,
+.stepDone:disabled {
+  opacity: 1;
+}
+
+.stepDone .stepIndex {
   border-color: var(--gold);
+  background: var(--gold);
+  color: var(--heading);
 }
 
 .card {
@@ -78,6 +151,42 @@
   border-top: 4px solid var(--gold);
   padding: 1.25rem;
   margin-bottom: 1rem;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+
+.familyPanel {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e3d5bd;
+}
+
+.familyPanel h3 {
+  color: var(--heading);
+}
+
+.memberCard {
+  margin: 0.75rem 0;
+  padding: 1rem;
+  border: 1px solid #e3d5bd;
+  border-radius: 12px;
+  background: #fffaf3;
+  color: var(--primary-text);
+}
+
+.memberCard h3 {
+  color: var(--heading);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.cardHeader h3 {
+  margin: 0;
 }
 
 .card :focus-visible {
@@ -121,15 +230,38 @@
   font-size: 0.9rem;
 }
 
+.quietNote {
+  margin: -0.35rem 0 1rem;
+  color: var(--primary-text);
+  font-size: 0.85rem;
+}
+
 .input,
 .select {
   width: 100%;
   max-width: 28rem;
+  min-height: 44px;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--primary-text);
   border-radius: 8px;
   background: var(--white);
   color: var(--heading);
+}
+
+.contactGrid {
+  display: grid;
+  gap: 0 1rem;
+}
+
+@media (min-width: 720px) {
+  .contactGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .contactGrid .input,
+  .contactGrid .select {
+    max-width: none;
+  }
 }
 
 .input:disabled {
@@ -161,8 +293,51 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  min-height: 2.25rem;
+  min-height: 44px;
   color: var(--heading);
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.55rem;
+  min-height: 44px;
+  padding: 0.7rem 0.75rem;
+  border: 2px solid #d9c9ad;
+  border-radius: 12px;
+  background: var(--white);
+}
+
+.options:has(.choice) {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+@media (min-width: 800px) {
+  .options:has(.choice) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.choice:has(input:checked) {
+  border-color: var(--primary);
+  background: #f6e7c4;
+}
+
+.choiceDetail {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--primary-text);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.dateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.4rem, 1fr));
+  gap: 0.5rem;
 }
 
 .option input {
@@ -174,11 +349,13 @@
 .dateOption {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0.35rem 0.75rem;
+  min-height: 44px;
+  padding: 0.4rem 0.65rem;
   border: 2px solid #d9c9ad;
-  border-radius: 8px;
+  border-radius: 10px;
+  background: var(--white);
   color: var(--heading);
   cursor: pointer;
 }
@@ -209,6 +386,27 @@
 .ticketLine {
   color: var(--heading);
   font-weight: 600;
+  margin: 0.5rem 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  background: #f8edd4;
+}
+
+.payTotal {
+  font-size: 1.25rem;
+}
+
+.progress {
+  margin: 0.25rem 0;
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.reference {
+  margin: 0.15rem 0 0.5rem;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  letter-spacing: 0.04em;
 }
 
 .actions {
@@ -219,10 +417,22 @@
   margin-top: 1rem;
 }
 
+.actions .primaryButton {
+  margin-left: auto;
+}
+
+.addPerson {
+  width: 100%;
+  min-height: 52px;
+  justify-content: center;
+  border-style: dashed;
+}
+
 .primaryButton,
 .secondaryButton,
 .linkButton {
   border-radius: 8px;
+  min-height: 44px;
   padding: 0.6rem 1.1rem;
   cursor: pointer;
   font-weight: 600;
@@ -354,8 +564,10 @@
 
 .totalRow td {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   border-bottom: none;
+  background: var(--primary);
+  color: var(--heading);
 }
 
 .stepper {
@@ -370,8 +582,8 @@
 }
 
 .stepper button {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 44px;
+  height: 44px;
   border-radius: 8px;
   border: 2px solid var(--primary-dark);
   background: var(--white);
@@ -424,7 +636,7 @@
 
 .summaryTotal {
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1.45rem;
 }
 
 .summaryToggle {
@@ -468,12 +680,17 @@
 
 .peopleList {
   margin: 0;
-  padding-left: 1.1rem;
+  padding: 0;
+  list-style: none;
   color: var(--heading);
 }
 
 .peopleList li {
   margin-bottom: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #e3d5bd;
+  border-radius: 10px;
+  background: #fffaf3;
 }
 
 @media print {

@@ -52,6 +52,9 @@ export function OrderSummary({
       </p>
 
       <div id="summary-body" className={styles.summaryBody} hidden={!expanded}>
+        <p className={styles.hint}>
+          The server calculates this total. No real payment is collected.
+        </p>
         {quote.status === "error" && quote.error && (
           <div className={styles.error} role="alert">
             <strong>Error:</strong> {quote.error.message}

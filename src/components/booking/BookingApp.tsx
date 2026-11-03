@@ -15,7 +15,7 @@ import {
 } from "./booking-reducer";
 import styles from "./booking.module.css";
 import { ExtrasStep } from "./ExtrasStep";
-import { formatDates } from "./format";
+import { formatFestivalRange } from "./format";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentStep } from "./PaymentStep";
 import { ReviewStep } from "./ReviewStep";
@@ -275,8 +275,16 @@ export function BookingApp() {
                       }
                       onClick={() => goTo(s)}
                     >
-                      {s}. {STEP_NAMES[s]}
-                      {completed ? " (done)" : ""}
+                      <span className={styles.stepIndex} aria-hidden="true">
+                        {s}
+                      </span>
+                      <span className={styles.stepLabel}>
+                        <span className={styles.srOnly}>{s}. </span>
+                        {STEP_NAMES[s]}
+                        {completed ? (
+                          <span className={styles.srOnly}> (done)</span>
+                        ) : null}
+                      </span>
                     </button>
                   </li>
                 );
@@ -441,14 +449,19 @@ export function BookingApp() {
 }
 
 function Header({ event }: { event: EventResponse["event"] | null }) {
-  const when =
-    event === null
-      ? "Loading festival details…"
-      : `${event.venue} · ${formatDates([event.dates[0]!, event.dates[event.dates.length - 1]!])}`;
   return (
     <header className={styles.header}>
+      <p className={styles.kicker}>Booking</p>
       <h1>{event?.name ?? "Sharad Utsav"}</h1>
-      <p>{when}</p>
+      {event === null ? (
+        <p>Loading festival details…</p>
+      ) : (
+        <p className={styles.eventMeta}>
+          <span>{event.venue}</span>
+          <span aria-hidden="true">·</span>
+          <span>{formatFestivalRange(event.dates)}</span>
+        </p>
+      )}
     </header>
   );
 }

@@ -234,7 +234,7 @@ export function stepTwoIssues(
     issues.push({
       key: "extras",
       label: "Extras",
-      message: `Only ${availability.garba_workshop} Garba Workshop places are left across both sessions, and this booking asks for ${draft.workshops.length}.`,
+      message: `Only ${availability.garba_workshop} Garba Workshop ${availability.garba_workshop === 1 ? "place is" : "places are"} left in total for Wednesday and Friday together, and this booking asks for ${draft.workshops.length}.`,
       fieldId: "extras",
     });
   }

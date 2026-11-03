@@ -67,7 +67,10 @@ export default async function ConfirmationPage({
       </header>
 
       <section className={styles.card} aria-labelledby="ref-title">
-        <h2 id="ref-title">Booking reference: {booking.id}</h2>
+        <p className={styles.kicker}>Booking reference</p>
+        <h2 id="ref-title" className={styles.reference}>
+          {booking.id}
+        </h2>
         <p>
           {booking.paymentMode === "free"
             ? "Free booking: no payment was needed."

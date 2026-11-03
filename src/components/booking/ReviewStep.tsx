@@ -7,6 +7,7 @@ import styles from "./booking.module.css";
 import { DATE_LABELS, describeAdmission, formatUsd } from "./format";
 import { QuoteTable } from "./QuoteTable";
 import { requestQuote, type QuoteState } from "./use-quote";
+import { TEXT_LIMITS } from "@/domain/booking/validation";
 
 interface Props {
   draft: Draft;
@@ -93,7 +94,6 @@ export function ReviewStep({
         {draft.promoCode ? (
           <>
             <p
-              className={promoError ? styles.error : styles.success}
               className={
                 quote.status === "ready" && !promoError
                   ? styles.success
@@ -121,6 +121,7 @@ export function ReviewStep({
                   {quote.quote
                     ? ` · saving ${formatUsd(quote.quote.discountCents)}`
                     : ""}
+                </>
               )}
             </p>
             <button
@@ -147,7 +148,6 @@ export function ReviewStep({
             promoCode={draft.promoCode}
             caption="Itemized price"
           />
-        ) : quote.status === "error" && !promoError ? (
         ) : quote.status === "error" ? (
           <div className={styles.error} role="alert">
             <strong>Error:</strong> {quote.error?.message}
@@ -163,6 +163,7 @@ export function ReviewStep({
                 </button>
               </>
             )}
+          </div>
         ) : (
           <p aria-live="polite">Updating total…</p>
         )}
@@ -223,6 +224,7 @@ function PromoForm({
         setMessage("We couldn't check that code.");
       }
     }
+  }
 
   return (
     <form
@@ -244,10 +246,10 @@ function PromoForm({
             id="promo"
             className={styles.input}
             style={{ maxWidth: "14rem" }}
-            aria-describedby="promo-hint"
             aria-describedby={message ? "promo-hint promo-error" : "promo-hint"}
             aria-invalid={message !== null || undefined}
             maxLength={TEXT_LIMITS.promo}
+            autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
             value={code}
@@ -263,8 +265,8 @@ function PromoForm({
         </div>
       </div>
       {message && (
-        <p className={styles.error} role="alert">
         <p id="promo-error" className={styles.error} role="alert">
+          <strong>Error:</strong> {message}
         </p>
       )}
     </form>

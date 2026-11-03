@@ -37,7 +37,9 @@ export function PaymentStep({
         charged.
       </p>
 
-      <p className={styles.ticketLine}>Total: {formatUsd(quote.totalCents)}</p>
+      <p className={`${styles.ticketLine} ${styles.payTotal}`}>
+        Total: {formatUsd(quote.totalCents)}
+      </p>
 
       {!isFree && (
         <fieldset className={styles.fieldset} disabled={locked}>
