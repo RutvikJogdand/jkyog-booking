@@ -1,0 +1,73 @@
+:root {
+  --primary-dark: #2c2c2c;
+  --primary: #c99b24;
+  --gold: #bc9226;
+  --bright-gold: #d1ac3e;
+  --cream: #fdf3e4;
+  --heading: #291900;
+  --primary-text: #645743;
+  --white: #ffffff;
+  --success: #28a736;
+  --error: #ef1f1f;
+
+  /* At least 90% cream over the dark page keeps body text above 4.5:1 (docs/UI.md section 7). */
+  --card: rgba(253, 243, 228, 0.95);
+
+  --font-heading: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-body:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--primary-dark);
+  color: var(--cream);
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+legend {
+  font-family: var(--font-heading);
+  line-height: 1.2;
+}
+
+a {
+  color: var(--bright-gold);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--bright-gold);
+  outline-offset: 2px;
+}
+
+@media print {
+  html {
+    color-scheme: light;
+  }
+  body {
+    background: var(--white);
+    color: #000;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

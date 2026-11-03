@@ -1,0 +1,228 @@
+"use client";
+
+import { useState, type Dispatch } from "react";
+import type { Selection } from "@/domain/booking/types";
+import type { Action, Draft } from "./booking-reducer";
+import styles from "./booking.module.css";
+import { DATE_LABELS, describeAdmission, formatUsd } from "./format";
+import { QuoteTable } from "./QuoteTable";
+import { requestQuote, type QuoteState } from "./use-quote";
+
+interface Props {
+  draft: Draft;
+  selection: Selection;
+  quote: QuoteState;
+  dispatch: Dispatch<Action>;
+  goToStep: (step: 1 | 2) => void;
+}
+
+export function ReviewStep({
+  draft,
+  selection,
+  quote,
+  dispatch,
+  goToStep,
+}: Props) {
+  const promoError = quote.error?.fields.find(
+    (f) => f.path === "selection.promoCode",
+  );
+
+  return (
+    <>
+      <section className={styles.card} aria-labelledby="who-title">
+        <h2 id="who-title">Who&apos;s coming</h2>
+        <ul className={styles.peopleList}>
+          {selection.attendees.map((attendee) => {
+            const dinners = selection.extras.dinners.filter(
+              (d) => d.attendeeId === attendee.id,
+            );
+            const workshops = selection.extras.workshops.filter(
+              (w) => w.attendeeId === attendee.id,
+            );
+            return (
+              <li key={attendee.id}>
+                <strong>{attendee.name}</strong> (age {attendee.ageAtFirstVisit}{" "}
+                on {DATE_LABELS[attendee.firstVisitDate]}):{" "}
+                {describeAdmission(attendee, selection.familyGroups)}
+                {dinners.length > 0 && (
+                  <>
+                    <br />
+                    Dinner: {dinners.map((d) => DATE_LABELS[d.date]).join(", ")}
+                  </>
+                )}
+                {workshops.length > 0 && (
+                  <>
+                    <br />
+                    Garba Workshop:{" "}
+                    {workshops.map((w) => DATE_LABELS[w.date]).join(", ")}
+                  </>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {selection.extras.sticksPairs > 0 && (
+          <p>
+            Dandiya Sticks: {selection.extras.sticksPairs}{" "}
+            {selection.extras.sticksPairs === 1 ? "pair" : "pairs"}
+          </p>
+        )}
+        <p>
+          Booked by {draft.booker.name} ({draft.booker.email})
+        </p>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => goToStep(1)}
+          >
+            Edit people and tickets
+          </button>
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={() => goToStep(2)}
+          >
+            Edit extras and contact
+          </button>
+        </div>
+      </section>
+
+      <section className={styles.card} aria-labelledby="promo-title">
+        <h2 id="promo-title">Promo code</h2>
+        {draft.promoCode ? (
+          <>
+            <p
+              className={promoError ? styles.error : styles.success}
+              role="status"
+            >
+              {promoError ? (
+                <>
+                  <strong>Error:</strong> {draft.promoCode}:{" "}
+                  {promoError.message}
+                </>
+              ) : (
+                <>
+                  Applied: <strong>{draft.promoCode}</strong>
+                  {quote.quote &&
+                    ` · saving ${formatUsd(quote.quote.discountCents)}`}
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              className={styles.linkButton}
+              onClick={() => dispatch({ type: "promoRemoved" })}
+            >
+              Remove code
+            </button>
+          </>
+        ) : (
+          <PromoForm
+            selection={selection}
+            onApplied={(code) => dispatch({ type: "promoApplied", code })}
+          />
+        )}
+      </section>
+
+      <section className={styles.card} aria-labelledby="price-title">
+        <h2 id="price-title">Price</h2>
+        {quote.status === "ready" && quote.quote ? (
+          <QuoteTable
+            quote={quote.quote}
+            promoCode={draft.promoCode}
+            caption="Itemized price"
+          />
+        ) : quote.status === "error" && !promoError ? (
+          <div className={styles.error} role="alert">
+            <strong>Error:</strong> {quote.error?.message}{" "}
+            <button
+              type="button"
+              className={styles.linkButton}
+              onClick={quote.retry}
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <p aria-live="polite">Updating total…</p>
+        )}
+      </section>
+    </>
+  );
+}
+
+function PromoForm({
+  selection,
+  onApplied,
+}: {
+  selection: Selection;
+  onApplied: (code: string) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function apply() {
+    if (code === "") {
+      setMessage("Enter a code.");
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    const outcome = await requestQuote({ ...selection, promoCode: code });
+    setBusy(false);
+    if (outcome.ok) {
+      onApplied(code);
+      return;
+    }
+    setMessage(
+      outcome.fields.find((f) => f.path === "selection.promoCode")?.message ??
+        outcome.message,
+    );
+  }
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void apply();
+      }}
+    >
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor="promo">
+          Code (optional)
+        </label>
+        <p className={styles.hint} id="promo-hint">
+          One code per booking. Codes must match exactly, including capital
+          letters.
+        </p>
+        <div className={styles.actions} style={{ marginTop: 0 }}>
+          <input
+            id="promo"
+            className={styles.input}
+            style={{ maxWidth: "14rem" }}
+            aria-describedby="promo-hint"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <button
+            type="submit"
+            className={styles.secondaryButton}
+            disabled={busy}
+          >
+            {busy ? "Checking…" : "Apply"}
+          </button>
+        </div>
+      </div>
+      {message && (
+        <p className={styles.error} role="alert">
+          <strong>Error:</strong> {message}
+        </p>
+      )}
+    </form>
+  );
+}

@@ -159,8 +159,8 @@ function validateAttendee(
     add(
       `${path}.admission`,
       admission.kind === "family"
-        ? "Children under 5 come free and don't fill one of the two child places. Choose free entry instead."
-        : "Children under 5 get free entry. Choose free entry instead of a ticket.",
+        ? "Children under 5 come free and don't fill one of the two child places. Add them with their own days instead."
+        : "Children under 5 get free entry and don't need a ticket.",
     );
   } else if (admission.kind !== "family" && admission.category !== category) {
     add(
