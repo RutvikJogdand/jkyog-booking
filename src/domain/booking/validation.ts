@@ -89,8 +89,10 @@ export function validateSelection(selection: Selection): ValidationIssue[] {
 // Paths are relative to the booker, e.g. "email".
 export function validateBooker(booker: Booker): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  if (booker.name.trim() === "") {
-    issues.push({ path: "name", message: "Enter your name." });
+  if(!(/^[\p{L}\p{M}' \-]+$/u.test(booker.name.trim()))) {
+    if (booker.name.trim() === "") {
+      issues.push({ path: "name", message: "Enter your name." });
+    }
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(booker.email.trim())) {
     issues.push({
@@ -146,6 +148,9 @@ function validateAttendee(
 ): void {
   if (attendee.name.trim() === "") {
     add(`${path}.name`, "Enter a name.");
+  }
+  if(!(/^[\p{L}\p{M}' \-]+$/u.test(attendee.name.trim()))) {
+    add(`${path}.name`, "Enter a valid name using letters, spaces, hyphens or apostrophes.");
   }
 
   if (!isValidAge(attendee.ageAtFirstVisit)) {

@@ -87,7 +87,7 @@ function adult(
 ) {
   return {
     id,
-    name: `Adult ${id}`,
+    name: `Adult ${id.replace(/\d/g, "")}`,
     firstVisitDate: dates[0] ?? "2026-11-10",
     ageAtFirstVisit: 30,
     admission: { kind: "day" as const, category: "adult" as const, dates },

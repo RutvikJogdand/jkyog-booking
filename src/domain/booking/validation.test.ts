@@ -21,7 +21,7 @@ function dayAdult(id: string, dates: Attendee["firstVisitDate"][]): Attendee {
 function familyMember(id: string, age: number, familyId = "f1"): Attendee {
   return {
     id,
-    name: `Member ${id}`,
+    name: `Member ${id.replace(/\d/g, "")}`,
     firstVisitDate: "2026-11-10",
     ageAtFirstVisit: age,
     admission: { kind: "family", familyId },
@@ -91,6 +91,24 @@ describe("validateSelection", () => {
       });
       expect(validateSelection(s)).toEqual([
         { path: "attendees.0.name", message: "Enter a name." },
+        {
+          path: "attendees.0.name",
+          message:
+            "Enter a valid name using letters, spaces, hyphens or apostrophes.",
+        },
+      ]);
+    });
+
+    it("rejects a name that contains a number", () => {
+      const s = selection({
+        attendees: [{ ...dayAdult("a", ["2026-11-10"]), name: "Asha 2" }],
+      });
+      expect(validateSelection(s)).toEqual([
+        {
+          path: "attendees.0.name",
+          message:
+            "Enter a valid name using letters, spaces, hyphens or apostrophes.",
+        },
       ]);
     });
 
@@ -116,7 +134,7 @@ describe("validateSelection", () => {
         attendees: [
           {
             id: "a",
-            name: "Turned 12",
+            name: "Asha",
             firstVisitDate: "2026-11-13",
             ageAtFirstVisit: 12,
             admission: {

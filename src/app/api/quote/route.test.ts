@@ -28,7 +28,7 @@ const family = [
   ["k2", 6],
 ].map(([id, age]) => ({
   id,
-  name: `Member ${id}`,
+  name: `Member ${String(id).replace(/\d/g, "")}`,
   firstVisitDate: "2026-11-10",
   ageAtFirstVisit: age,
   admission: { kind: "family", familyId: "f1" },

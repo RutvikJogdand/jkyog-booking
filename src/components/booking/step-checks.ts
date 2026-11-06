@@ -87,6 +87,9 @@ export function stepOneIssues(
         `${attendee.id}-name`,
       );
     }
+    if(!(/^[\p{L}\p{M}' \-]+$/u.test(attendee.name.trim()))) {
+      add("Enter a valid name using letters, spaces, hyphens or apostrophes.", `${attendee.id}-name`);
+    }
     if (attendee.mode === "days" && attendee.dates.length === 0) {
       add("Choose at least one day.", `${attendee.id}-dates`);
     }
