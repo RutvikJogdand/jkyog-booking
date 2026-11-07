@@ -42,7 +42,81 @@ All money is in integer cents. Errors are `{ error: { code, message, fields: [{ 
 
 ## Decisions I made
 
-These are decisions made after the original `DESIGN.md`, which stays unchanged.
+This section records the booking decisions I made before coding and the additional choices made during implementation. The original `DESIGN.md` stays unchanged.
+
+### Decisions made before coding
+
+Some booking situations were not fully explained in the brief. These are the questions I considered, what I decided, and why.
+
+1. **Can someone use `FLAT20` when their booking costs less than $20?**
+
+   **Decision:** Require a subtotal of at least $20, including extras. A $15 booking cannot use the code. Exactly $20 is allowed, making the final total $0. A valid $0 booking skips payment but still uses the selected stock.
+
+   **Why:** The purchase should cover the full $20 discount. A clear minimum avoids changing the discount amount depending on the booking.
+
+2. **Can a Family Pass cover a different combination of adults and children?**
+
+   **Decision:** Require exactly two adults aged 12+ and two children aged 5–11. Under-fives can attend free alongside them, but cannot replace a child in the bundle. Other combinations use individual tickets, and additional family members need their own admission.
+
+   **Why:** The supplied price covers that specific combination. There is no pricing rule for substitutions or smaller bundles.
+
+3. **Does `KIDSFREE` also discount a Family Pass?**
+
+   **Decision:** Apply it to individual child Day and All-Day admission only. The Family Pass remains $40, and extras remain chargeable.
+
+   **Why:** The Family Pass has one bundle price, with no separate child price to remove. Free admission also does not imply free meals or workshops.
+
+4. **Which age determines a ticket if someone has a birthday during the festival?**
+
+   **Decision:** Tell people to choose their ticket using their age when they first attend the festival. Keep that age category across their booked days, regardless of how many days they attend.
+
+   For example, someone who is 11 on November 10, turns 12 on November 12, and first attends on November 13 needs an adult ticket. If they first attend while still 11, their child category stays the same for that booking.
+
+   **Why:** Their age when they actually arrive is what matters. Keeping that category fixed also avoids changing the price halfway through their visit.
+
+5. **Are the two remaining workshop places available on each date, or shared across both dates?**
+
+   **Decision:** Share the two places across November 11 and November 13. A place booked on either date reduces the same remaining stock.
+
+   **Why:** The brief gives two remaining places without separate allocations. Treating that as two per date would invent additional availability.
+
+6. **What happens to dinner or workshop selections when someone removes an attendance date?**
+
+   **Decision:** Automatically remove extras no longer covered by that person's attendance. Explain what was removed and why, then update the total.
+
+   **Why:** People should not be charged for activities on a day they are no longer attending. Explaining the removal makes the change visible.
+
+7. **Can the same family buy Family Passes for multiple dates?**
+
+   **Decision:** Yes. Collect the four people's details once and allow multiple dates. Each date costs $40 and uses one Family Pass from stock. Two dates cost $80 and use two passes.
+
+   **Why:** Each pass covers one day, but a family attending several days should not have to enter the same people repeatedly.
+
+8. **Can someone combine multiple promo codes?**
+
+   **Decision:** Allow only one active promo code per booking. Discounts cannot be stacked.
+
+   **Why:** The brief does not explain how combined discounts work or which applies first. One code keeps the calculation clear.
+
+9. **Does selecting a ticket or getting a quote reserve stock?**
+
+   **Decision:** No. Stock goes to the first successful checkout. Checkout checks availability again and saves the booking together with its stock deductions.
+
+   **Why:** Someone leaving a form unfinished should not block other families from booking. This also avoids reservation timers and expiry rules.
+
+10. **Do under-fives need to be included in the booking, and are their extras free?**
+
+    **Decision:** Record their names and attendance dates even though admission is free. Charge the normal price for any selected dinner or workshop places.
+
+    **Why:** Free admission should not make someone disappear from the attendance list. The free-entry rule applies to admission, not everything they might use.
+
+11. **Does the person making the booking have to attend?**
+
+    **Decision:** No. Keep the booker separate from the attendees. The booker must currently be 18 or older, but only needs an admission entry if they are attending.
+
+    **Why:** Someone may book and pay for their family without coming themselves. Entering contact details should not automatically add a ticket.
+
+### Additional decisions during implementation
 
 - **Dandiya Sticks: 0–10 pairs per booking, never more than the remaining stock.** Ten pairs covers a large family without letting one booking take an excessive share of souvenir stock. The UI and the API enforce the same limit.
 - **Dinner Plate: at most one per attendee per attendance date.** The assignment prices dinner "per person, per day" and doesn't mention multiple plates. Under-fives pay the normal $12. The UI shows one checkbox per attendee and date.
@@ -75,3 +149,4 @@ These are decisions made after the original `DESIGN.md`, which stays unchanged.
 - Real payments, email, accounts, refunds, an admin screen and identity checks (out of scope in `DESIGN.md`).
 - An unknown receipt address returns the "Booking not found" page with HTTP 200 rather than 404.
 - Vercel is not connected to GitHub, so deployments are made with `vercel deploy --prod`. GitHub Actions is set up for checks, not for deploying.
+
